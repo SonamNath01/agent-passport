@@ -110,6 +110,7 @@ Environment
 Developed under WSL, repo lives in the Linux filesystem (~/code/agent-passport), not on /mnt/c. Small-file operations on the Windows mount are slow and cause file-lock failures.
 Do not mix WSL and PowerShell for installs. Prisma downloads a platform-specific engine binary; installing under one and running under the other breaks it.
 Docker Desktop WSL integration is on; Postgres is at localhost:5432 from inside WSL.
+tsx watch does not detect file changes on /mnt/c under WSL (inotify doesn't fire across the 9p/drvfs mount). A service left running under `pnpm dev` will keep serving the old code silently after an edit — kill and restart it manually (find the pid on its port, kill it, `pnpm --filter <package> dev` again) before trusting any test against it.
 Node 22. Dependency versions are pinned on purpose.
 How to work here
 Phase discipline. Work only on the phase you were asked for. Finish it, verify it, report, and stop. Do not start the next phase.
