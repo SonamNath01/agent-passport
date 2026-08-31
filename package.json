@@ -1,0 +1,39 @@
+{
+  "name": "agent-passport",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx scripts/dev.ts",
+    "dev:issuer": "pnpm --filter @agent-passport/issuer dev",
+    "dev:passport": "pnpm --filter @agent-passport/passport dev",
+    "dev:agent": "pnpm --filter @agent-passport/agent dev",
+    "dev:web": "pnpm --filter @agent-passport/web dev",
+    "db:push": "prisma db push",
+    "db:generate": "prisma generate",
+    "seed": "tsx --env-file=.env prisma/seed.ts",
+    "demo": "tsx --env-file=.env scripts/demo.ts",
+    "demo:2": "tsx --env-file=.env scripts/demo-2.ts",
+    "demo:3": "tsx --env-file=.env scripts/demo-3.ts",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "build": "pnpm -r --filter=./packages/* --filter=./apps/* build"
+  },
+  "dependencies": {
+    "@agent-passport/shared": "workspace:*",
+    "@prisma/adapter-pg": "7.10.0",
+    "@prisma/client": "7.10.0",
+    "dotenv": "17.4.2",
+    "pg": "8.23.0"
+  },
+  "devDependencies": {
+    "@types/node": "22.20.1",
+    "@types/pg": "8.23.1",
+    "prisma": "7.10.0",
+    "tsx": "4.23.12",
+    "typescript": "5.9.3",
+    "vitest": "4.1.11"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": ["@prisma/engines", "esbuild", "prisma"]
+  }
+}

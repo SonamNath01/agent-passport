@@ -1,0 +1,30 @@
+import type { AuthorizeResult, Mandate, TransactionRequest } from "@agent-passport/shared";
+
+// Mirrors apps/agent/src/events.ts's RunStep — that type isn't exported from
+// packages/shared (it's local to the agent's own SSE wire format), so this
+// is a deliberate small duplication rather than reshaping the shared package
+// for one field.
+export interface RunStep {
+  stage: string;
+  detail: Record<string, unknown>;
+  timestamp: string;
+}
+
+// Body of apps/agent's POST /run response — see apps/agent/src/run.ts.
+export interface RunResponse {
+  selection: { productId: string; name: string; priceRupees: number; injected: boolean };
+  mandate: Mandate;
+  request: TransactionRequest;
+  result: AuthorizeResult;
+}
+
+// Body of the passport's GET /mandates/:id/status — see
+// apps/passport/src/mandateStatus.ts.
+export interface MandateStatus {
+  mandateId: string;
+  agentId: string;
+  capPaise: number;
+  spentPaise: number;
+  reservedPaise: number;
+  remainingPaise: number;
+}

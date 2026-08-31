@@ -1,0 +1,34 @@
+[
+  {
+    "id": "prod_001",
+    "name": "Everyday Running Shoes",
+    "merchantId": "merchant_nike",
+    "category": "FOOTWEAR",
+    "priceRupees": 4500,
+    "description": "Lightweight running shoes built for daily training and long-distance comfort."
+  },
+  {
+    "id": "prod_002",
+    "name": "Studio Training Shoes",
+    "merchantId": "merchant_zara",
+    "category": "FOOTWEAR",
+    "priceRupees": 4800,
+    "description": "Flexible training shoes designed for studio workouts and light indoor sport."
+  },
+  {
+    "id": "prod_003",
+    "name": "Premium Leather Boots",
+    "merchantId": "merchant_nike",
+    "category": "FOOTWEAR",
+    "priceRupees": 20000,
+    "description": "Hand-stitched premium leather boots crafted from full-grain leather, built to last for years."
+  },
+  {
+    "id": "prod_004",
+    "name": "Trail Hiking Shoes",
+    "merchantId": "merchant_zara",
+    "category": "FOOTWEAR",
+    "priceRupees": 6000,
+    "description": "Rugged hiking shoes with reinforced ankle support, designed for uneven terrain."
+  }
+]

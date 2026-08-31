@@ -1,0 +1,154 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+// Prisma 7: connection strings live in prisma.config.ts (for the CLI) and in
+// the driver adapter passed to `new PrismaClient({ adapter })` (at runtime) —
+// `url` is no longer a valid field here. See prisma.config.ts and apps/*/src/db.ts.
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  createdAt DateTime @default(now())
+
+  agents   Agent[]
+  mandates Mandate[]
+
+  @@map("users")
+}
+
+model Agent {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String
+  publicKey String
+  createdAt DateTime @default(now())
+
+  user         User          @relation(fields: [userId], references: [id])
+  mandates     Mandate[]
+  transactions Transaction[]
+
+  @@map("agents")
+}
+
+// mandateId (issued by apps/issuer) is used directly as the primary key.
+model Mandate {
+  id                   String   @id
+  userId               String
+  agentId              String
+  maxAmountPaise       Int
+  currency             String
+  cumulativeLimitPaise Int
+  windowHours          Int
+  category             String
+  maxQuantity          Int
+  merchantAllowlist    String[]
+  destination          String
+  issuedAt             DateTime
+  expiresAt            DateTime
+  nonce                String
+  issuerSignature      String
+  revoked              Boolean  @default(false)
+  createdAt            DateTime @default(now())
+
+  user         User          @relation(fields: [userId], references: [id])
+  agent        Agent         @relation(fields: [agentId], references: [id])
+  transactions Transaction[]
+  spendLedger  SpendLedger?
+  reservations Reservation[]
+
+  @@map("mandates")
+}
+
+model Transaction {
+  id              String   @id @default(cuid())
+  mandateId       String
+  agentId         String
+  merchantId      String
+  category        String
+  subcategory     String
+  amountPaise     Int
+  quantity        Int
+  destination     String
+  // Not unique: every attempt gets a row, replays included, and a replay
+  // reuses the same nonce as the request it's replaying (that's the whole
+  // point of check 09 blocking it) — so this column can legitimately repeat.
+  // razorpay.ts's dedup lookup filters on razorpayOrderId being set too,
+  // since only one row per nonce can ever have reached that gateway step.
+  nonce           String
+  timestamp       DateTime
+  agentSignature  String
+  decision        String
+  reasonCode      String
+  // Set only when decision is ALLOW and the gateway was actually called.
+  razorpayOrderId String?
+  paymentStatus   String?
+  createdAt       DateTime @default(now())
+
+  mandate Mandate @relation(fields: [mandateId], references: [id])
+  agent   Agent   @relation(fields: [agentId], references: [id])
+
+  @@map("transactions")
+}
+
+// Cumulative spend, per mandate, inside a rolling window. spentPaise is money
+// already committed; reservedPaise is money provisionally held by an in-flight
+// authorize call. Both count against capPaise so two parallel requests can't
+// both slip under the cap (see apps/passport/src/ledger.ts).
+model SpendLedger {
+  id            String   @id @default(cuid())
+  mandateId     String   @unique
+  capPaise      Int
+  spentPaise    Int      @default(0)
+  reservedPaise Int      @default(0)
+  windowStart   DateTime @default(now())
+  windowHours   Int
+  updatedAt     DateTime @updatedAt
+
+  mandate Mandate @relation(fields: [mandateId], references: [id])
+
+  @@map("spend_ledgers")
+}
+
+// One row per check-10 reservation. RESERVED holds capacity against the cap;
+// the payment step later moves it to COMMITTED (spent) or RELEASED (given back).
+model Reservation {
+  id          String   @id @default(cuid())
+  mandateId   String
+  amountPaise Int
+  status      String   @default("RESERVED")
+  createdAt   DateTime @default(now())
+
+  mandate Mandate @relation(fields: [mandateId], references: [id])
+
+  @@map("reservations")
+}
+
+model AuditEvent {
+  id         String   @id @default(cuid())
+  type       String
+  mandateId  String?
+  agentId    String?
+  decision   String?
+  reasonCode String?
+  detail     Json?
+  createdAt  DateTime @default(now())
+
+  @@map("audit_events")
+}
+
+// Backs replay protection for check 09: the nonce column's unique constraint
+// is the only thing that decides a replay, never a SELECT-then-INSERT.
+model UsedNonce {
+  id        String   @id @default(cuid())
+  nonce     String   @unique
+  mandateId String?
+  agentId   String?
+  createdAt DateTime @default(now())
+
+  @@map("used_nonces")
+}
