@@ -54,6 +54,7 @@ Concurrency test (parallel spend race)	5	done — tests/concurrency.spec.ts, 10 
 Compromise + false-block measurement	5	done — tests/adversarial.spec.ts + scripts/measure.ts; scripted brain: 60% (6/10) attempts compromised agent intent, 0% (0/6) of those produced a payment, 0% (0/20) false blocks — see docs/results.json. LIMITATIONS: scripted brain only, not a real LLM measurement — see notes below
 Real-LLM brain (AGENT_BRAIN=llm)	—	implemented, unmeasured — apps/agent/src/llmBrain.ts + brainSelector.ts call Claude (claude-opus-5) via strict structured output; no ANTHROPIC_API_KEY was available to run it, so no LLM numbers exist anywhere in this repo
 Docs pack (11 files)	6	done — README + 10 files in docs/, all under their word limits, every number traced to docs/results.json or a real audit row
+Agent registration hardening (immutable key per agentId)	—	done — apps/passport/src/registry.ts: same agentId + same key is an idempotent 200, same agentId + different key is a 409 and an audit_events row; apps/passport/test/agent-registration.test.ts, 4/4 pass
 Fresh-clone verification, secrets scan, submission pack	7	pending
 CONFIRM path (yellow)	—	not built — do not claim it in any doc
 Signed receipts / non-repudiation	—	not built — do not claim it in any doc

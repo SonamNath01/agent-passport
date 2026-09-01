@@ -117,7 +117,7 @@ From CLAUDE.md's feature table:
 | Issuer service, mandate signing, /public-key | 1 | done |
 | Check pipeline, fail-closed, short-circuit | 1 | done |
 | Checks 02, 03, 05, 06, 07 | 1 | done |
-| Prisma schema (7 models), seed, demo script | 1 | done |
+| Prisma schema (8 models), seed, demo script | 1 | done |
 | Check 01 agent signature | 2 | done |
 | Check 04 merchant, 08 destination | 2 | done |
 | Check 09 replay nonce (DB unique constraint) | 2 | done |
@@ -134,6 +134,7 @@ From CLAUDE.md's feature table:
 | Compromise + false-block measurement | 5 | done — scripted brain: 60% compromised, 0% of those paid, 0% false blocks. Not a real LLM |
 | Real-LLM brain (AGENT_BRAIN=llm) | — | implemented, unmeasured — no API key |
 | Docs pack (11 files) | 6 | done |
+| Agent registration hardening (immutable key per agentId) | — | done — `apps/passport/src/registry.ts` |
 | Fresh-clone verification, secrets scan, submission pack | 7 | pending |
 | CONFIRM path (yellow) | — | **not built — do not claim it in any doc** |
 | Signed receipts / non-repudiation | — | **not built — do not claim it in any doc** |

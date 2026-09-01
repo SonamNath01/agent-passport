@@ -10,6 +10,10 @@ git clone <this-repo>
 cd agent-passport
 pnpm install
 cp .env.example .env        # then fill in RAZORPAY_KEY_ID / RAZORPAY_KEY_SECRET
+pnpm db:generate            # generates the Prisma client into node_modules — pnpm install
+                             # does not do this on its own; a fresh clone's first seed/dev
+                             # run fails with "does not provide an export named 'PrismaClient'"
+                             # without it
 docker compose up -d        # Postgres 16 on :5432
 pnpm db:push                # applies prisma/schema.prisma
 pnpm seed                   # creates user_demo, agent_demo, prints the demo private key
@@ -68,6 +72,15 @@ Prisma downloads a platform-specific query engine binary the first time you inst
 Installing under WSL and then running under PowerShell (or the reverse) points the
 project at an engine built for the other OS, and it fails at runtime. Pick one shell —
 WSL is what this project is developed under — and don't mix installs across them.
+
+**I edited a `.ts` file and the running service is still serving the old code.** If the
+repo lives under `/mnt/c/...`, `tsx watch` does not detect the change — inotify doesn't
+fire across the 9p/drvfs mount Windows filesystem access goes through. This is silent:
+the process keeps running and keeps serving the old code. Find the process on the
+service's port, kill it, and run `pnpm --filter <package> dev` again (or restart
+`pnpm dev`) before trusting a test against it. This only affects live-editing while a
+service is running; it doesn't affect the quickstart above, since nothing there edits
+code after starting a service.
 
 **A `pnpm install` pulls in an unexpected compiler or ORM version.** Dependency versions
 in this repo are pinned exactly (no `^` or `~`) on purpose: a resolver was once seen

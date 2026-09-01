@@ -11,6 +11,7 @@
     "db:push": "prisma db push",
     "db:generate": "prisma generate",
     "seed": "tsx --env-file=.env prisma/seed.ts",
+    "demo:reset": "tsx --env-file=.env scripts/demo-reset.ts && pnpm seed",
     "demo": "tsx --env-file=.env scripts/demo.ts",
     "demo:2": "tsx --env-file=.env scripts/demo-2.ts",
     "demo:3": "tsx --env-file=.env scripts/demo-3.ts",

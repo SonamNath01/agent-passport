@@ -50,6 +50,7 @@ cp .env.example .env
 # Edit .env and set RAZORPAY_KEY_ID / RAZORPAY_KEY_SECRET to free test-mode keys
 # from https://dashboard.razorpay.com (test mode only — never live keys).
 
+pnpm db:generate           # generates the Prisma client into node_modules
 docker compose up -d      # Postgres 16 on :5432
 pnpm db:push
 pnpm seed
