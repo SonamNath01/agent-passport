@@ -4,7 +4,7 @@ import { z } from "zod";
 import { signPayload, type AuthorizeResult, type Mandate, type TransactionRequest } from "@agent-passport/shared";
 import type { AgentIdentity } from "./identity.js";
 import { loadCatalog } from "./catalog.js";
-import { selectProduct } from "./brain.js";
+import { chooseProduct, currentBrain, type AgentChoice } from "./brainSelector.js";
 import { emitStep } from "./events.js";
 
 const RunBodySchema = z.object({
@@ -35,33 +35,34 @@ export function registerRunRoute(
     }
     const mandate = (await mandateRes.json()) as Mandate;
 
-    emitStep("searching", { catalog: poisoned ? "poisoned" : "clean" });
+    const brain = currentBrain();
+    emitStep("searching", { catalog: poisoned ? "poisoned" : "clean", brain });
     const catalog = loadCatalog(Boolean(poisoned));
 
-    let selection: ReturnType<typeof selectProduct>;
+    let choice: AgentChoice;
     try {
-      selection = selectProduct(prompt, catalog);
+      choice = await chooseProduct(prompt, catalog, brain);
     } catch (err) {
       emitStep("error", { message: err instanceof Error ? err.message : "product selection failed" });
       return reply.code(422).send({ error: "no_suitable_product" });
     }
 
-    emitStep(`found ${selection.candidateCount} products`, { budgetRupees: selection.budgetRupees });
-    emitStep("comparing", { candidateCount: selection.candidateCount });
-    emitStep(`selected ${selection.product.name}`, {
-      productId: selection.product.id,
-      priceRupees: selection.product.priceRupees,
-      injected: selection.injected,
+    emitStep(`selected ${choice.product.name}`, {
+      productId: choice.product.id,
+      amountPaise: choice.amountPaise,
+      quantity: choice.quantity,
+      budgetRupees: choice.budgetRupees,
+      overBudget: choice.overBudget,
     });
 
     const unsigned = {
       mandateId: mandate.mandateId,
       agentId: identity.agentId,
-      merchantId: selection.product.merchantId,
+      merchantId: choice.product.merchantId,
       category: mandate.category,
-      subcategory: selection.product.name,
-      amountPaise: selection.product.priceRupees * 100,
-      quantity: 1,
+      subcategory: choice.product.name,
+      amountPaise: choice.amountPaise,
+      quantity: choice.quantity,
       destination: mandate.destination,
       nonce: randomUUID(),
       timestamp: new Date().toISOString(),
@@ -85,11 +86,13 @@ export function registerRunRoute(
     emitStep("decision", { ...result });
 
     return reply.send({
+      brain,
       selection: {
-        productId: selection.product.id,
-        name: selection.product.name,
-        priceRupees: selection.product.priceRupees,
-        injected: selection.injected,
+        productId: choice.product.id,
+        name: choice.product.name,
+        amountPaise: choice.amountPaise,
+        quantity: choice.quantity,
+        overBudget: choice.overBudget,
       },
       mandate,
       request: txRequest,
