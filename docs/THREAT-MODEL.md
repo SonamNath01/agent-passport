@@ -67,6 +67,9 @@ already moved. And any content-level judgment about whether a product descriptio
 deceptive — none of the ten checks read product descriptions at all, which is exactly why
 they can't be manipulated by one.
 
+Agent registration has no operator authentication, but keys are immutable once
+registered; operator auth on registration is what a production deployment adds.
+
 ## The precise claim
 
 We prevent a compromised or manipulated agent from converting unauthorised transaction intent into an authorised payment, provided the transaction violates a mechanically enforceable mandate constraint.
