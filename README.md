@@ -42,7 +42,7 @@ of this from a WSL shell with the repo checked out on the Linux filesystem — s
 `docs/RUNBOOK.md` for why.
 
 ```bash
-git clone <this-repo>
+git clone https://github.com/SonamNath01/agent-passport.git
 cd agent-passport
 pnpm install
 
