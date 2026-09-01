@@ -135,7 +135,7 @@ From CLAUDE.md's feature table:
 | Real-LLM brain (AGENT_BRAIN=llm) | — | implemented, unmeasured — no API key |
 | Docs pack (11 files) | 6 | done |
 | Agent registration hardening (immutable key per agentId) | — | done — `apps/passport/src/registry.ts` |
-| Fresh-clone verification, secrets scan, submission pack | 7 | pending |
+| Fresh-clone verification, secrets scan, submission pack | 7 | done — see `docs/SUBMISSION.md`; deployment (optional) skipped, no cloud credentials |
 | CONFIRM path (yellow) | — | **not built — do not claim it in any doc** |
 | Signed receipts / non-repudiation | — | **not built — do not claim it in any doc** |
 

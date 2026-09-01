@@ -55,7 +55,7 @@ Compromise + false-block measurement	5	done — tests/adversarial.spec.ts + scri
 Real-LLM brain (AGENT_BRAIN=llm)	—	implemented, unmeasured — apps/agent/src/llmBrain.ts + brainSelector.ts call Claude (claude-opus-5) via strict structured output; no ANTHROPIC_API_KEY was available to run it, so no LLM numbers exist anywhere in this repo
 Docs pack (11 files)	6	done — README + 10 files in docs/, all under their word limits, every number traced to docs/results.json or a real audit row
 Agent registration hardening (immutable key per agentId)	—	done — apps/passport/src/registry.ts: same agentId + same key is an idempotent 200, same agentId + different key is a 409 and an audit_events row; apps/passport/test/agent-registration.test.ts, 4/4 pass
-Fresh-clone verification, secrets scan, submission pack	7	pending
+Fresh-clone verification, secrets scan, submission pack	7	done — two fresh clones ran pnpm demo start to finish after fixing the missing `pnpm db:generate` step; full-history secrets scan found nothing; docs/VIDEO.md, docs/SUBMISSION.md, LICENSE added. Deployment (optional, item 6) skipped — no cloud credentials in this environment
 CONFIRM path (yellow)	—	not built — do not claim it in any doc
 Signed receipts / non-repudiation	—	not built — do not claim it in any doc
 Hard rules — never break these
