@@ -93,6 +93,29 @@ disk load on a `/mnt/c` path); just run `pnpm dev` again. The passport will neve
 without the issuer's key — it either gets it or exits, it doesn't silently start
 unauthenticated.
 
+**Create mandate fails with `400 {"error":"unknown_user_or_agent"}` right after a fresh
+seed.** The agent service persists its identity (agentId + keypair) to
+`.keys/agent.json` on the host filesystem so it survives restarts — but
+`docker compose down -v` only wipes the Postgres volume, not that file. After a wipe,
+the file still names an agentId from before the wipe, which the fresh, reseeded
+database has never heard of; the web UI reads that stale id from `GET /api/agent/identity`
+and asks the issuer to mint a mandate for an agent it has no record of. Fixed:
+`apps/agent/src/identity.ts` checks the persisted agentId against the Passport
+(`GET /agents/:id`) on every boot, and if it comes back 404, re-registers the same
+agentId and keypair before serving `/identity` — no manual cleanup, no coordination
+with `prisma/seed.ts` needed. If you ever need to force a brand-new agent identity
+(new keypair too), delete `.keys/agent.json` and restart the agent service.
+
+This is also probably what caused a one-off `500 {"code":"P2003", ...
+agents_userId_fkey}"` seen from `scripts/demo.ts`'s own `/agents/register` call during
+testing, though that specific failure is on a *different* column (`userId`, on a brand
+new agent row that `demo.ts` registers itself — it doesn't touch `.keys/agent.json` at
+all) and didn't reproduce across two full clean-wipe cycles run to verify the fix above.
+Both are FK failures of the same shape — a row a client assumes exists has actually
+been removed by a DB wipe — so if you see it again, check `docker compose ps` /
+`pnpm seed` ran to completion before whatever hit it, rather than assuming it's this
+same agentId bug.
+
 **A `pnpm install` pulls in an unexpected compiler or ORM version.** Dependency versions
 in this repo are pinned exactly (no `^` or `~`) on purpose: a resolver was once seen
 picking release-candidate versions of the TypeScript compiler and the Prisma client,
