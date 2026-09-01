@@ -77,21 +77,30 @@ through the Passport. It prints:
 All demo scenarios passed.
 ```
 
-For the full four-service setup (adds the agent and the web dashboard) and the
-prompt-injection demo, see `docs/RUNBOOK.md` and `docs/DEMO.md`.
+## See it in the browser
+
+Run `pnpm dev` to start all four services (issuer, Passport, agent, web), then open
+`http://localhost:5173`. Issue a mandate, run the agent against the clean catalog, then
+check **Poisoned catalog** and run it again to watch check 7 block a manipulated
+₹20,000 request on the Passport dashboard in real time. Full script: `docs/DEMO.md`.
 
 ## Documentation
 
-- `docs/DESIGN.md` — the four services, who holds which key, the data model
-- `docs/FLOW.md` — one payment, start to finish, and the ten checks
-- `docs/THREAT-MODEL.md` — what we assume, what we prevent, what we don't
-- `docs/INCIDENT.md` — a real blocked prompt-injection attempt, from the audit ledger
-- `docs/DEMO.md` — the 90-second live demo script
-- `docs/EVALUATION.md` — test results and measured numbers
-- `docs/API.md` — every HTTP endpoint, with working curl examples
-- `docs/RUNBOOK.md` — environment variables, setup, troubleshooting
-- `docs/DECISIONS.md` — short records of the architecture choices and their tradeoffs
-- `docs/WALKTHROUGH.md` — start here to understand and present the whole project
+- [docs/WALKTHROUGH.md](docs/WALKTHROUGH.md) — **start here.** Understand and present
+  the whole project.
+- [docs/DESIGN.md](docs/DESIGN.md) — the four services, who holds which key, the data
+  model
+- [docs/FLOW.md](docs/FLOW.md) — one payment, start to finish, and the ten checks
+- [docs/THREAT-MODEL.md](docs/THREAT-MODEL.md) — what we assume, what we prevent, what
+  we don't
+- [docs/INCIDENT.md](docs/INCIDENT.md) — a real blocked prompt-injection attempt, from
+  the audit ledger
+- [docs/DEMO.md](docs/DEMO.md) — the 90-second live demo script
+- [docs/EVALUATION.md](docs/EVALUATION.md) — test results and measured numbers
+- [docs/API.md](docs/API.md) — every HTTP endpoint, with working curl examples
+- [docs/RUNBOOK.md](docs/RUNBOOK.md) — environment variables, setup, troubleshooting
+- [docs/DECISIONS.md](docs/DECISIONS.md) — short records of the architecture choices
+  and their tradeoffs
 
 ## What this does not do
 
