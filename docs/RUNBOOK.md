@@ -82,6 +82,17 @@ service's port, kill it, and run `pnpm --filter <package> dev` again (or restart
 service is running; it doesn't affect the quickstart above, since nothing there edits
 code after starting a service.
 
+**Passport crashed right after `pnpm dev` from cold, but comes up fine over two
+terminals.** `pnpm dev` starts all four services in parallel, so on a cold start the
+passport can call the issuer's `/public-key` before the issuer is listening, get
+`ECONNREFUSED`, and exit. The two-terminal path in the quickstart hides this because it
+starts the issuer first. Fixed: `apps/passport/src/index.ts` retries that fetch — 10
+attempts, 1 second apart, each logged as a warning — before giving up. If you still see
+it fail, the issuer took longer than ~10 seconds to boot (for example under heavy WSL
+disk load on a `/mnt/c` path); just run `pnpm dev` again. The passport will never listen
+without the issuer's key — it either gets it or exits, it doesn't silently start
+unauthenticated.
+
 **A `pnpm install` pulls in an unexpected compiler or ORM version.** Dependency versions
 in this repo are pinned exactly (no `^` or `~`) on purpose: a resolver was once seen
 picking release-candidate versions of the TypeScript compiler and the Prisma client,
