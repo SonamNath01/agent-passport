@@ -12,7 +12,8 @@ export interface RunStep {
 
 // Body of apps/agent's POST /run response — see apps/agent/src/run.ts.
 export interface RunResponse {
-  selection: { productId: string; name: string; priceRupees: number; injected: boolean };
+  brain: "scripted" | "llm";
+  selection: { productId: string; name: string; amountPaise: number; quantity: number; overBudget: boolean };
   mandate: Mandate;
   request: TransactionRequest;
   result: AuthorizeResult;

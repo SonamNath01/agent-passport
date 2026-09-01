@@ -49,10 +49,11 @@ Agent service, own keypair, SSE activity stream	3	done
 Clean + poisoned catalog, injection demo	3	done
 Web: create mandate / agent activity / Passport dashboard	4	done
 Red attack dashboard state	4	done — BLOCK banner turns red with reason code; checks after the short-circuit point show "not evaluated", not PASS
-Policy matrix tests (13 cases)	5	pending
-Concurrency test (parallel spend race)	5	pending
-Adversarial measurement + false-block rate	5	pending
-Docs pack (11 files)	6	pending
+Policy matrix tests (13 cases)	5	done — tests/policy.spec.ts, all 13 pass
+Concurrency test (parallel spend race)	5	done — tests/concurrency.spec.ts, 10 rounds of 5-way race in one run, all 10 pass
+Compromise + false-block measurement	5	done — tests/adversarial.spec.ts + scripts/measure.ts; scripted brain: 60% (6/10) attempts compromised agent intent, 0% (0/6) of those produced a payment, 0% (0/20) false blocks — see docs/results.json. LIMITATIONS: scripted brain only, not a real LLM measurement — see notes below
+Real-LLM brain (AGENT_BRAIN=llm)	—	implemented, unmeasured — apps/agent/src/llmBrain.ts + brainSelector.ts call Claude (claude-opus-5) via strict structured output; no ANTHROPIC_API_KEY was available to run it, so no LLM numbers exist anywhere in this repo
+Docs pack (11 files)	6	done — README + 10 files in docs/, all under their word limits, every number traced to docs/results.json or a real audit row
 Fresh-clone verification, secrets scan, submission pack	7	pending
 CONFIRM path (yellow)	—	not built — do not claim it in any doc
 Signed receipts / non-repudiation	—	not built — do not claim it in any doc
@@ -107,7 +108,7 @@ pnpm demo                 # scripted ALLOW / BLOCK / tampered-signature proof
 pnpm test
 pnpm measure              # adversarial + false-block numbers -> docs/results.json
 Environment
-Developed under WSL, repo lives in the Linux filesystem (~/code/agent-passport), not on /mnt/c. Small-file operations on the Windows mount are slow and cause file-lock failures.
+Developed under WSL. This repo currently lives at `/mnt/c/Users/Sonam Nath/projects/agent-passport` — the Windows filesystem mounted into WSL. Small-file operations there are slow and can cause file-lock failures during install; moving the repo to the Linux filesystem (e.g. `~/code/agent-passport`) avoids this — see docs/RUNBOOK.md.
 Do not mix WSL and PowerShell for installs. Prisma downloads a platform-specific engine binary; installing under one and running under the other breaks it.
 Docker Desktop WSL integration is on; Postgres is at localhost:5432 from inside WSL.
 tsx watch does not detect file changes on /mnt/c under WSL (inotify doesn't fire across the 9p/drvfs mount). A service left running under `pnpm dev` will keep serving the old code silently after an edit — kill and restart it manually (find the pid on its port, kill it, `pnpm --filter <package> dev` again) before trusting any test against it.

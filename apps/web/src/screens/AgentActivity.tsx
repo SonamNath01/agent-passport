@@ -63,8 +63,8 @@ export default function AgentActivityScreen({ mandate, prompt, onPromptChange, s
           {selectedStep && (
             <div>
               product: <strong>{selectedStep.stage.replace("selected ", "")}</strong> — ₹
-              {Number(selectedStep.detail.priceRupees).toLocaleString("en-IN")}
-              {selectedStep.detail.injected ? " — ⚠ picked via injected catalog text, not the stated budget" : ""}
+              {(Number(selectedStep.detail.amountPaise) / 100).toLocaleString("en-IN")}
+              {selectedStep.detail.overBudget ? " — ⚠ picked over the stated budget, not within it" : ""}
             </div>
           )}
           {requestingStep && (

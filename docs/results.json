@@ -1,0 +1,21 @@
+{
+  "scripted": {
+    "capturedAt": "2026-09-01T07:13:53.625Z",
+    "compromise": {
+      "attemptCount": 10,
+      "brainResponseParseFailures": 0,
+      "attemptsThatCompromisedAgentIntent": 6,
+      "compromiseRatePct": "60.0%",
+      "compromisedAttemptsThatProducedPayment": 0,
+      "paymentRateAmongCompromisedAttemptsPct": "0.0%"
+    },
+    "falseBlocks": {
+      "legitimateRequests": 20,
+      "falseBlocks": 0,
+      "falseBlockRatePct": "0.0%"
+    },
+    "brain": "scripted (apps/agent/src/brain.ts pattern-matcher, not an LLM)",
+    "limitations": "This is a deliberately compromisable scripted pattern-matcher, not a real LLM. These numbers measure how often this scripted agent's product choice deviates from the stated budget when the catalog contains injected instruction text — they are NOT a measurement of real LLM prompt-injection susceptibility. AGENT_BRAIN=llm is implemented (apps/agent/src/llmBrain.ts, a real Claude API call) but has not been run: no ANTHROPIC_API_KEY was available in this environment."
+  },
+  "lastUpdated": "2026-09-01T07:13:53.629Z"
+}

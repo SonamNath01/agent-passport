@@ -1,80 +1,105 @@
 # Agent Passport
 
-An authorisation layer that lets an AI agent make payments on a user's behalf without holding the
-user's PIN or unlimited spending authority. A **mandate issuer** signs a scoped mandate (max
-amount, cumulative cap, category, quantity, merchant allow-list, destination, expiry). The agent
-carries that mandate but never holds the issuer's private key. Before any payment reaches a
-gateway, the **Passport** runs deterministic checks against the signed mandate and returns
-ALLOW / CONFIRM / BLOCK with a machine-readable reason code.
+Agent Passport lets an AI shopping agent spend money for a user without ever holding the
+user's PIN or an unlimited card. A separate service called the issuer signs a scoped
+permission slip, called a **mandate**: a maximum amount per purchase, a total spending
+cap, a product category, a quantity limit, a list of approved merchants, a destination
+account, and an expiry date. The agent carries this mandate into every purchase it tries
+to make, but it never holds the issuer's private signing key, so it cannot write or widen
+a mandate itself. Before any payment reaches a gateway, a service called the **Passport**
+runs ten checks against the signed mandate and returns one of two verdicts — ALLOW or
+BLOCK — with a machine-readable reason code.
 
-This is **pass 1 of 3** of a hackathon build: workspace scaffold, signing/verification, and 5 of
-10 checks. See `// TODO(pass-2)` comments for what's stubbed.
+## The problem
 
-## Architecture
+AI shopping agents read text from product listings and other tools, and that text can
+carry hidden instructions — a technique called prompt injection. An attacker can plant
+text in a product description that tells the agent to ignore the user's stated budget and
+buy something else instead. If the agent trusts that text, and nothing stands between the
+agent and the payment gateway, the attacker has turned the agent into a way to move money
+it was never authorised to move.
 
+## How it fits together
+
+```mermaid
+flowchart LR
+    U[User sets limits] --> I[Issuer signs mandate]
+    I --> A[Agent picks a product]
+    A --> P["Passport: 10 checks"]
+    P -->|ALLOW| R[Razorpay test order]
+    P -->|BLOCK| L[Audit ledger]
+    R --> L
 ```
-packages/shared/   canonical serialisation, Ed25519 sign/verify, shared types, reason codes
-apps/issuer/        (:4001) generates/loads a keypair, signs mandates on request
-apps/passport/       (:4000) runs the 10-check pipeline, persists transactions/audit events
-prisma/              schema, migration state, seed script
-scripts/demo.ts       proves one ALLOW and one BLOCK end to end over HTTP
-```
 
-Nothing in `apps/passport/src/checks/` calls an LLM, fetches a URL, or reads free text — every
-check is a pure function over two already-parsed, already-verified objects. Any thrown error or
-unknown state fails closed to BLOCK.
+The agent is assumed hostile: it can be manipulated or fully taken over by an attacker.
+The governing rule is that an agent may **use** authority the issuer granted it, but it
+may never **create or widen** that authority.
 
-## Prerequisites
+## Quickstart
 
-- Node.js 20+
-- pnpm 9+ (`corepack enable` if you don't have it)
-- Docker Desktop (for Postgres)
+Prerequisites: Node.js 22, pnpm (`corepack enable`), Docker Desktop. On Windows, run all
+of this from a WSL shell with the repo checked out on the Linux filesystem — see
+`docs/RUNBOOK.md` for why.
 
-## Quickstart (PowerShell)
-
-```powershell
+```bash
 git clone <this-repo>
 cd agent-passport
 pnpm install
 
-Copy-Item .env.example .env
+cp .env.example .env
+# Edit .env and set RAZORPAY_KEY_ID / RAZORPAY_KEY_SECRET to free test-mode keys
+# from https://dashboard.razorpay.com (test mode only — never live keys).
 
-docker compose up -d
+docker compose up -d      # Postgres 16 on :5432
 pnpm db:push
 pnpm seed
 
-# in separate terminals:
-pnpm dev:issuer
-pnpm dev:passport
+# in two separate terminals:
+pnpm dev:issuer            # :4001
+pnpm dev:passport          # :4000
 
-# once both are up:
+# once both are listening:
 pnpm demo
 ```
 
-`pnpm demo` issues a mandate for ₹5,000 (FOOTWEAR, qty 1), sends a ₹4,500 request (expect
-`ALLOW / AUTHORISED`), a ₹20,000 request (expect `BLOCK / PRICE_LIMIT_EXCEEDED`), and a request
-against a tampered mandate (expect `BLOCK / MANDATE_SIGNATURE_INVALID`).
+`pnpm demo` issues a mandate capped at ₹5,000 per purchase, then sends three requests
+through the Passport. It prints:
 
-## Tests
+```
+=== Scenario 1: within limits -> ALLOW ===
+  -> ALLOW / AUTHORISED
+=== Scenario 2: over the mandate cap -> BLOCK ===
+  -> BLOCK / PRICE_LIMIT_EXCEEDED
+=== Scenario 3: tampered mandate -> BLOCK ===
+  -> BLOCK / MANDATE_SIGNATURE_INVALID
 
-```powershell
-pnpm test
+All demo scenarios passed.
 ```
 
-Runs `packages/shared`'s canonicalisation + sign/verify round-trip tests, including a test that
-mutates one signed field and asserts verification fails.
+For the full four-service setup (adds the agent and the web dashboard) and the
+prompt-injection demo, see `docs/RUNBOOK.md` and `docs/DEMO.md`.
 
-## What's implemented in this pass
+## Documentation
 
-- Checks 02 (mandate signature), 03 (expiry), 05 (category), 06 (quantity), 07 (amount).
-- Checks 01 (agent signature), 04 (merchant allow-list), 08 (destination), 09 (nonce replay), 10
-  (spend cap) are stubbed to `{ ok: true }` with `// TODO(pass-2)` — the pipeline already runs
-  them in order so pass 2 only has to fill in their bodies.
-- Full Prisma schema (`User`, `Agent`, `Mandate`, `Transaction`, `SpendLedger`, `AuditEvent`,
-  `UsedNonce`) even though this pass only writes to `User`, `Agent`, `Mandate`, `Transaction`,
-  `AuditEvent`.
+- `docs/DESIGN.md` — the four services, who holds which key, the data model
+- `docs/FLOW.md` — one payment, start to finish, and the ten checks
+- `docs/THREAT-MODEL.md` — what we assume, what we prevent, what we don't
+- `docs/INCIDENT.md` — a real blocked prompt-injection attempt, from the audit ledger
+- `docs/DEMO.md` — the 90-second live demo script
+- `docs/EVALUATION.md` — test results and measured numbers
+- `docs/API.md` — every HTTP endpoint, with working curl examples
+- `docs/RUNBOOK.md` — environment variables, setup, troubleshooting
+- `docs/DECISIONS.md` — short records of the architecture choices and their tradeoffs
+- `docs/WALKTHROUGH.md` — start here to understand and present the whole project
 
-## Not built in this pass
+## What this does not do
 
-The agent service, the web frontend, Razorpay integration, the nonce store, the spend ledger,
-revocation, and the CONFIRM decision path. These are scoped for passes 2 and 3.
+- **No CONFIRM step.** The Passport only ever returns ALLOW or BLOCK. A middle "ask the
+  user" path is designed for but not built.
+- **No signed payment receipts.** Every request is recorded in the audit ledger, but
+  nothing here produces an after-the-fact proof a third party could verify independently.
+- **The default product-picking "brain" is a scripted pattern-matcher**, not a real
+  language model — see `docs/EVALUATION.md`. A real LLM brain exists behind
+  `AGENT_BRAIN=llm` but has not been measured in this repository.
+- **Not KYC, fraud scoring, or dispute handling.** It enforces limits the user already
+  set; it has no opinion on chargebacks after money has moved. See `docs/THREAT-MODEL.md`.
