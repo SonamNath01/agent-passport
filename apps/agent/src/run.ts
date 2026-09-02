@@ -92,6 +92,7 @@ export function registerRunRoute(
         name: choice.product.name,
         amountPaise: choice.amountPaise,
         quantity: choice.quantity,
+        budgetRupees: choice.budgetRupees,
         overBudget: choice.overBudget,
       },
       mandate,

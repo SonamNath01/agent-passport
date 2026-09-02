@@ -13,7 +13,14 @@ export interface RunStep {
 // Body of apps/agent's POST /run response — see apps/agent/src/run.ts.
 export interface RunResponse {
   brain: "scripted" | "llm";
-  selection: { productId: string; name: string; amountPaise: number; quantity: number; overBudget: boolean };
+  selection: {
+    productId: string;
+    name: string;
+    amountPaise: number;
+    quantity: number;
+    budgetRupees: number;
+    overBudget: boolean;
+  };
   mandate: Mandate;
   request: TransactionRequest;
   result: AuthorizeResult;
@@ -28,4 +35,18 @@ export interface MandateStatus {
   spentPaise: number;
   reservedPaise: number;
   remainingPaise: number;
+}
+
+// One row from the passport's GET /audit — see apps/passport/src/audit.ts.
+// `detail` is whatever recordAuditEvent() was called with; only `payment` is
+// read anywhere in the web app, and only when present.
+export interface AuditEvent {
+  id: string;
+  type: string;
+  mandateId?: string | null;
+  agentId?: string | null;
+  decision?: string | null;
+  reasonCode?: string | null;
+  detail?: { payment?: { status: string; orderId?: string } } | null;
+  createdAt: string;
 }

@@ -1,12 +1,12 @@
 import { useEffect, useState } from "react";
 import type { Mandate } from "@agent-passport/shared";
-import { getAgentIdentity } from "./api";
+import { getAgentIdentity, getIssuerPublicKey } from "./api";
 import type { RunResponse, RunStep } from "./types";
 import CreateMandateScreen from "./screens/CreateMandate";
 import AgentActivityScreen from "./screens/AgentActivity";
-import PassportDashboardScreen from "./screens/PassportDashboard";
+import SecurityConsoleScreen from "./screens/SecurityConsole";
 
-type Tab = "mandate" | "agent" | "dashboard";
+type Tab = "mandate" | "agent" | "console";
 type Identity = { agentId: string; publicKey: string };
 
 // Screens never talk to each other directly — App is the only place that
@@ -16,6 +16,7 @@ export default function App() {
   const [tab, setTab] = useState<Tab>("mandate");
   const [identity, setIdentity] = useState<Identity | null>(null);
   const [identityError, setIdentityError] = useState<string | null>(null);
+  const [issuerPublicKey, setIssuerPublicKey] = useState<string | null>(null);
   const [mandate, setMandate] = useState<Mandate | null>(null);
   const [prompt, setPrompt] = useState("Buy me running shoes under ₹5,000");
   const [steps, setSteps] = useState<RunStep[]>([]);
@@ -25,6 +26,9 @@ export default function App() {
     getAgentIdentity()
       .then(setIdentity)
       .catch((err) => setIdentityError(err instanceof Error ? err.message : "unreachable"));
+    getIssuerPublicKey()
+      .then((res) => setIssuerPublicKey(res.publicKey))
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -46,7 +50,11 @@ export default function App() {
   return (
     <div className="app">
       <header className="app-header">
-        <h1>Agent Passport</h1>
+        <div className="app-title">
+          <span className="app-title-mark" aria-hidden="true" />
+          <h1>Agent Passport</h1>
+          <span className="app-subtitle">security console</span>
+        </div>
         <span className="identity-line">
           {identity
             ? `agent ${identity.agentId} · ${identity.publicKey.slice(0, 20)}…`
@@ -63,8 +71,8 @@ export default function App() {
         <button className={`tab ${tab === "agent" ? "active" : ""}`} disabled={!mandate} onClick={() => setTab("agent")}>
           2. Agent activity
         </button>
-        <button className={`tab ${tab === "dashboard" ? "active" : ""}`} disabled={!mandate} onClick={() => setTab("dashboard")}>
-          3. Passport dashboard
+        <button className={`tab ${tab === "console" ? "active" : ""}`} disabled={!mandate} onClick={() => setTab("console")}>
+          3. Security console
         </button>
       </nav>
 
@@ -86,10 +94,15 @@ export default function App() {
             setSteps([]);
             setLatestRun(null);
           }}
-          onRunFinished={setLatestRun}
+          onRunFinished={(run) => {
+            setLatestRun(run);
+            setTab("console");
+          }}
         />
       )}
-      {tab === "dashboard" && mandate && <PassportDashboardScreen mandate={mandate} latestRun={latestRun} />}
+      {tab === "console" && mandate && (
+        <SecurityConsoleScreen mandate={mandate} latestRun={latestRun} prompt={prompt} issuerPublicKey={issuerPublicKey} />
+      )}
     </div>
   );
 }

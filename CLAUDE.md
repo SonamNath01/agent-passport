@@ -49,6 +49,7 @@ Agent service, own keypair, SSE activity stream	3	done
 Clean + poisoned catalog, injection demo	3	done
 Web: create mandate / agent activity / Passport dashboard	4	done
 Red attack dashboard state	4	done — BLOCK banner turns red with reason code; checks after the short-circuit point show "not evaluated", not PASS
+Security console redesign (Prompt A)	—	done — apps/web screen 3 rebuilt as a fintech-style console: animated 10-check pipeline staggered from the real decision payload, AUTHORISED/ATTEMPTED/EXCESS violation banner, teal authority/spend panel, collapsible request inspector (signature + issuer key fingerprint), AI-decision-vs-security-authorisation split, live polling audit feed. No apps/passport/src/checks|ledger|razorpay logic touched. One additive field (`budgetRupees`) added to apps/agent's existing /run response so the AI panel can explain an overBudget pick — no new endpoints, no logic change. Screenshots: docs/img/console-allow.png, docs/img/console-block.png
 Policy matrix tests (13 cases)	5	done — tests/policy.spec.ts, all 13 pass
 Concurrency test (parallel spend race)	5	done — tests/concurrency.spec.ts, 10 rounds of 5-way race in one run, all 10 pass
 Compromise + false-block measurement	5	done — tests/adversarial.spec.ts + scripts/measure.ts; scripted brain: 60% (6/10) attempts compromised agent intent, 0% (0/6) of those produced a payment, 0% (0/20) false blocks — see docs/results.json. LIMITATIONS: scripted brain only, not a real LLM measurement — see notes below

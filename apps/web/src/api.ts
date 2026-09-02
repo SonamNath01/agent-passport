@@ -1,5 +1,5 @@
 import type { Mandate } from "@agent-passport/shared";
-import type { MandateStatus, RunResponse } from "./types";
+import type { AuditEvent, MandateStatus, RunResponse } from "./types";
 
 async function json<T>(pending: Promise<Response>): Promise<T> {
   const res = await pending;
@@ -50,4 +50,17 @@ export function runAgent(input: { mandateId: string; prompt: string; poisoned: b
 
 export function getMandateStatus(mandateId: string): Promise<MandateStatus> {
   return json(fetch(`/api/passport/mandates/${mandateId}/status`));
+}
+
+// apps/issuer already serves this at boot (apps/passport/src/index.ts fetches
+// it the same way) — the web app just hadn't been wired to it yet. Used for
+// the request inspector's issuer-key fingerprint, never a private key.
+export function getIssuerPublicKey(): Promise<{ publicKey: string }> {
+  return json(fetch("/api/issuer/public-key"));
+}
+
+// apps/passport/src/audit.ts — every authorize attempt and registration
+// event, blocked included. Polled by the audit feed.
+export function getAuditEvents(limit = 25): Promise<{ events: AuditEvent[] }> {
+  return json(fetch(`/api/passport/audit?limit=${limit}`));
 }
