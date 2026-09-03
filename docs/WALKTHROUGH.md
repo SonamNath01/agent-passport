@@ -131,13 +131,15 @@ From CLAUDE.md's feature table:
 | Red attack dashboard state | 4 | done — checks after short-circuit show "not evaluated" |
 | Policy matrix tests (13 cases) | 5 | done, 13/13 |
 | Concurrency test (parallel spend race) | 5 | done, 10/10 rounds |
-| Compromise + false-block measurement | 5 | done — scripted brain: 60% compromised, 0% of those paid, 0% false blocks. Not a real LLM |
-| Real-LLM brain (AGENT_BRAIN=llm) | — | implemented, unmeasured — no API key |
-| Docs pack (11 files) | 6 | done |
+| Compromise + false-block measurement | 5 | done — scripted brain: 60% compromised, 0% of those paid, 0% false blocks |
+| Real-LLM brain (AGENT_BRAIN=llm), wired to Groq | — | done and measured — 20% compromised in the most recent run, 0% of those paid, 0% false blocks. See `docs/EVALUATION.md` |
+| Docs pack | 6 | done — see the doc list above, now including `docs/JUDGE-QA.md` |
 | Agent registration hardening (immutable key per agentId) | — | done — `apps/passport/src/registry.ts` |
 | Fresh-clone verification, secrets scan, submission pack | 7 | done — see `docs/SUBMISSION.md`; deployment (optional) skipped, no cloud credentials |
-| CONFIRM path (yellow) | — | **not built — do not claim it in any doc** |
+| Targeted hardening + live adversarial pass | — | done — `INFRA_ERROR` reason code, CONFIRM fully removed (not just undocumented), zod on every endpoint, generic 500s. Found and reported (not fixed) two real gaps — see `docs/JUDGE-QA.md` Q11 and Q12 |
+| CONFIRM path (yellow) | — | **not built — removed from the Decision type and UI entirely, not just undocumented. Do not claim it in any doc** |
 | Signed receipts / non-repudiation | — | **not built — do not claim it in any doc** |
+| Mandate-to-agent binding (an 11th check) | — | **not built — a real gap, found live, reported in `docs/JUDGE-QA.md` Q11. Do not claim this is closed in any doc** |
 
 ## Questions judges will ask
 
@@ -156,8 +158,8 @@ issuer's signature, replay a nonce, or reach Razorpay.
 defends against a compromised agent, not a compromised gate.
 
 **Why not just ask the user to confirm every purchase?** The point is letting an agent
-act within limits set once. A `CONFIRM` middle path is designed into the reason codes but
-not built — see `docs/DECISIONS.md`.
+act within limits set once. A `CONFIRM` middle path isn't built anywhere — not in the
+`Decision` type, not in the UI, not as a reason code — see `docs/DECISIONS.md` #6.
 
 **Why not use an LLM to check whether the product matches the request?** The checks must
 never read the same untrusted text the agent reads. A check judging "does this match"
@@ -173,14 +175,19 @@ settled after.
 the cap before Razorpay is called, so a timeout can't cause a double-spend. It's left
 `PENDING_UNKNOWN` — see `apps/passport/src/razorpay.ts`.
 
-**Did you actually prove the injection works, or is the agent scripted?** Honestly: the
-brain tested here is a scripted pattern-matcher, not an LLM — see `docs/EVALUATION.md`.
-It really read the poisoned catalog and got manipulated, with real audit rows in
-`docs/INCIDENT.md`. A real-LLM brain exists but hasn't run.
+**Did you actually prove the injection works, or is the agent scripted?** Both, honestly.
+The default brain is a scripted pattern-matcher, not an LLM — it really read the poisoned
+catalog and got manipulated, with real audit rows in `docs/INCIDENT.md`. A real LLM brain
+(`AGENT_BRAIN=llm`, `openai/gpt-oss-20b` on Groq) has also been run against the same
+attack phrasings: 20% compromised it in the most recent run. See `docs/EVALUATION.md`.
 
 **What does this not protect against?** A compromised issuer or Passport, bad limits the
-user set, fraud, KYC, chargebacks after money moves, and whether the product picked was
-actually *good* — it can fit every limit and still be a poor buy.
+user set, fraud, KYC, chargebacks after money moves, whether the product picked was
+actually *good* — it can fit every limit and still be a poor buy — and two more specific
+things a later hardening pass found and reported rather than silently fixed: a mandate
+isn't bound to the agent it names, and the agent process's environment (not its code)
+contains the Razorpay credentials it never uses. Full detail: `docs/JUDGE-QA.md`, which
+also carries thirteen more questions in the same honest style.
 
 ## The 60-second pitch
 

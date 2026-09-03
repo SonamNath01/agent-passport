@@ -22,6 +22,11 @@ one.
   requests instead of one large one to try to slip under a limit.
 - Read every `BLOCK` reason code the Passport returns and adjust the next attempt.
 - Control the timing of requests, including firing several at once.
+- Spend against a mandate issued to a *different* agent, as long as it presents its own
+  genuine signature and its request happens to satisfy that mandate's other constraints.
+  No check compares `mandate.agentId` to the requesting agent's own id — see
+  `docs/JUDGE-QA.md` Q11 for the live test that confirmed this and why it wasn't fixed in
+  the same pass that found it.
 
 ## What an attacker who fully controls the agent cannot do
 
@@ -35,8 +40,13 @@ one.
 - Exceed the cumulative cap by splitting one big purchase into many small ones. Check 10
   reserves against the real ledger with an atomic update; there is no window where the
   agent's own count of "how much have I spent" is what gets trusted.
-- Reach the Razorpay gateway directly. The agent process holds no gateway credentials and
-  has no code path to call it — the only door to money is `POST /authorize`.
+- Reach the Razorpay gateway through any code path this project ships — the only door to
+  money `apps/agent`'s own code ever calls is `POST /authorize`. In the current dev setup
+  the agent process's *environment* does contain the Razorpay credentials (it loads the
+  same root `.env` file the Passport does, and Node's `--env-file` doesn't scope by
+  service), even though `apps/agent/src/` never reads them — this isn't reachable under
+  the prompt-injection threat model above, but would be under a stronger one (arbitrary
+  code execution in the agent process). See `docs/JUDGE-QA.md` Q12.
 
 ## The trusted computing base
 
@@ -72,4 +82,4 @@ registered; operator auth on registration is what a production deployment adds.
 
 ## The precise claim
 
-We prevent a compromised or manipulated agent from converting unauthorised transaction intent into an authorised payment, provided the transaction violates a mechanically enforceable mandate constraint.
+We prevent a compromised or manipulated agent from converting unauthorised transaction intent into an authorised payment, provided the transaction violates a mechanically enforceable mandate constraint **and the mandate presented actually belongs to the presenting agent** — the second half of that clause is not yet itself a mechanically enforced constraint (see the mandate-ownership gap above and `docs/JUDGE-QA.md` Q11).

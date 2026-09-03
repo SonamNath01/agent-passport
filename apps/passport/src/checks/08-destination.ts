@@ -6,7 +6,6 @@ import { ReasonCode, type Check, type CheckResult } from "@agent-passport/shared
 export const check: Check = {
   id: 8,
   name: "destination",
-  failCode: ReasonCode.DESTINATION_MISMATCH,
   run(ctx): CheckResult {
     if (ctx.request.destination !== ctx.mandate.destination) {
       return { ok: false, code: ReasonCode.DESTINATION_MISMATCH };

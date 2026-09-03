@@ -6,7 +6,6 @@ import { ReasonCode, type Check, type CheckResult } from "@agent-passport/shared
 export const check: Check = {
   id: 4,
   name: "merchant",
-  failCode: ReasonCode.MERCHANT_NOT_ALLOWED,
   run(ctx): CheckResult {
     if (!ctx.mandate.merchantAllowlist.includes(ctx.request.merchantId)) {
       return { ok: false, code: ReasonCode.MERCHANT_NOT_ALLOWED };

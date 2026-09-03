@@ -6,7 +6,6 @@ import { ReasonCode, verifyPayload, type Check, type CheckResult } from "@agent-
 export const check: Check = {
   id: 1,
   name: "agent-signature",
-  failCode: ReasonCode.AGENT_SIGNATURE_INVALID,
   run(ctx): CheckResult {
     if (!ctx.agentPublicKey) {
       return { ok: false, code: ReasonCode.AGENT_SIGNATURE_INVALID };

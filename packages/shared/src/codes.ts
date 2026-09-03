@@ -10,9 +10,11 @@ export const ReasonCode = {
   DESTINATION_MISMATCH: "DESTINATION_MISMATCH",
   NONCE_REPLAYED: "NONCE_REPLAYED",
   SPEND_CAP_EXCEEDED: "SPEND_CAP_EXCEEDED",
-  AMBIGUOUS_CLASSIFICATION: "AMBIGUOUS_CLASSIFICATION",
-  NEW_MERCHANT_UNDER_POLICY: "NEW_MERCHANT_UNDER_POLICY",
   AUTHORISED: "AUTHORISED",
+  // Not a business-rule failure — a check couldn't run at all (DB unreachable,
+  // unexpected exception) and the pipeline fell through to this instead of
+  // guessing which of the ten meanings the failure was. Still BLOCK either way.
+  INFRA_ERROR: "INFRA_ERROR",
 } as const;
 
 export type ReasonCode = (typeof ReasonCode)[keyof typeof ReasonCode];

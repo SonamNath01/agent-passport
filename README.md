@@ -101,15 +101,23 @@ check **Poisoned catalog** and run it again to watch check 7 block a manipulated
 - [docs/RUNBOOK.md](docs/RUNBOOK.md) — environment variables, setup, troubleshooting
 - [docs/DECISIONS.md](docs/DECISIONS.md) — short records of the architecture choices
   and their tradeoffs
+- [docs/JUDGE-QA.md](docs/JUDGE-QA.md) — the fifteen hardest questions a judge could ask,
+  answered honestly from the code
 
 ## What this does not do
 
-- **No CONFIRM step.** The Passport only ever returns ALLOW or BLOCK. A middle "ask the
-  user" path is designed for but not built.
+- **No CONFIRM step.** The Passport only ever returns ALLOW or BLOCK — not designed into
+  the code anywhere, not even as an unused type or reason code. See `docs/DECISIONS.md` #6.
 - **No signed payment receipts.** Every request is recorded in the audit ledger, but
   nothing here produces an after-the-fact proof a third party could verify independently.
 - **The default product-picking "brain" is a scripted pattern-matcher**, not a real
-  language model — see `docs/EVALUATION.md`. A real LLM brain exists behind
-  `AGENT_BRAIN=llm` but has not been measured in this repository.
+  language model. A real LLM brain exists behind `AGENT_BRAIN=llm` and has been measured:
+  20% of the same attack phrasings compromised it in the most recent run, versus 60% for
+  the scripted brain — see `docs/EVALUATION.md` for the full numbers and caveats.
 - **Not KYC, fraud scoring, or dispute handling.** It enforces limits the user already
   set; it has no opinion on chargebacks after money has moved. See `docs/THREAT-MODEL.md`.
+- **A mandate isn't bound to the agent it names.** No check compares `mandate.agentId` to
+  the requesting agent's own id — a different registered agent can spend against a
+  mandate it was never issued, if its request happens to satisfy that mandate's other
+  constraints. Found live, not fixed — see `docs/JUDGE-QA.md` Q11 for the full case and
+  why it wasn't patched in the same pass that found it.

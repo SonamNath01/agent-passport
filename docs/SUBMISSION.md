@@ -69,15 +69,29 @@ correct, 4 ALLOW + 1 BLOCK every time against a shared cap (`tests/concurrency.s
   come from `apps/agent/src/brain.ts`, a deliberately compromisable pattern-matcher. A
   real-LLM brain also exists behind `AGENT_BRAIN=llm` (`apps/agent/src/llmBrain.ts`, calling
   `openai/gpt-oss-20b` on Groq via `apps/agent/src/llmProvider.ts`) and has been measured:
-  30% (3/10) of the same attack phrasings compromised it, 0% of those produced a payment —
-  see `docs/results.json`'s `"llm"` block and `docs/EVALUATION.md` for the full numbers and
-  why that figure characterises this one open model/provider, not LLM agents generally.
-- **No CONFIRM path.** The Passport only ever returns ALLOW or BLOCK. A middle "ask the
-  user" path is designed into the reason codes (`Decision` includes `"CONFIRM"` in
-  `packages/shared/src/types.ts`) but not built — see `docs/DECISIONS.md`.
+  20% (2/10) of the same attack phrasings compromised it in the most recent run (a prior
+  run saw 30% (3/10) — expected variance at n=10), 0% of those produced a payment — see
+  `docs/results.json`'s `"llm"` block and `docs/EVALUATION.md` for the full numbers and why
+  that figure characterises this one open model/provider, not LLM agents generally.
+- **No CONFIRM path.** The Passport only ever returns ALLOW or BLOCK — as of a later
+  hardening pass this isn't even a dead branch: `Decision` is `"ALLOW" | "BLOCK"`, full
+  stop, not built anywhere, not designed into a reason code — see `docs/DECISIONS.md` #6.
 - **No signed payment receipts.** Every attempt is recorded in the audit ledger, but
   nothing here produces an after-the-fact proof a third party could verify
   independently.
+- **A mandate isn't bound to the agent it names.** None of the ten checks compares
+  `mandate.agentId` to the requesting agent's own id, so a second, unrelated, validly
+  registered agent can spend against a mandate it was never issued, as long as its request
+  happens to satisfy that mandate's other constraints. Found live by a targeted adversarial
+  pass and deliberately not patched in the same pass that found it, since it means adding
+  an eleventh check to a pipeline that pass was told to verify, not restructure. High
+  severity, one-check-shaped fix — see `docs/JUDGE-QA.md` Q11.
+- **The agent process's environment contains the Razorpay credentials it never uses.**
+  `apps/agent` loads the same root `.env` file `apps/passport` does; its own code never
+  reads `RAZORPAY_KEY_ID`/`RAZORPAY_KEY_SECRET`, so this isn't reachable under the stated
+  prompt-injection threat model, but it does mean the agent process *holds* a credential
+  the architecture's own hard rule says only the Passport should hold. Medium severity,
+  cheap fix (split `.env` by service) — see `docs/JUDGE-QA.md` Q12.
 - **Not KYC, fraud scoring, or dispute handling.** It enforces limits the user already
   set; it has no opinion on chargebacks after money has moved.
 
@@ -88,6 +102,7 @@ correct, 4 ALLOW + 1 BLOCK every time against a shared cap (`tests/concurrency.s
 - README: [../README.md](../README.md)
 - Walkthrough: [WALKTHROUGH.md](WALKTHROUGH.md)
 - Incident (a real blocked prompt-injection attempt): [INCIDENT.md](INCIDENT.md)
+- Judge Q&A, including two gaps a live adversarial pass found and did not fix: [JUDGE-QA.md](JUDGE-QA.md)
 
 ## Team
 

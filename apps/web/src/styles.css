@@ -416,12 +416,6 @@ button.primary:disabled {
   font-size: 22px;
 }
 
-.decision-banner.confirm {
-  border-color: var(--amber-border);
-  background: linear-gradient(180deg, var(--amber-bg), transparent 70%);
-  color: var(--amber);
-}
-
 .violation-figures {
   display: flex;
   justify-content: center;
@@ -880,11 +874,6 @@ button.primary:disabled {
 .decision-block {
   background: var(--red-bg);
   color: var(--red);
-}
-
-.decision-confirm {
-  background: var(--amber-bg);
-  color: var(--amber);
 }
 
 /* ---------- demo scenarios panel ---------- */

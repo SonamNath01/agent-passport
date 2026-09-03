@@ -1,9 +1,11 @@
+// Compares now() against the mandate's expiresAt, and checks its live revoked flag.
+// Exists because authority a user granted once should not last forever or survive revocation.
+// Stops a stale or explicitly-cancelled mandate from still being usable.
 import { ReasonCode, type Check, type CheckResult } from "@agent-passport/shared";
 
 export const check: Check = {
   id: 3,
   name: "expiry",
-  failCode: ReasonCode.MANDATE_EXPIRED,
   run(ctx): CheckResult {
     // mandateRevoked comes from a DB lookup authorize.ts does before the
     // pipeline runs — a revoked mandate's signature is still valid, so the

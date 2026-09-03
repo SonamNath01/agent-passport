@@ -6,7 +6,7 @@ What this project is
 
 Agent Passport — an authorisation layer that lets an AI agent make payments for a user without ever holding the user's PIN or unlimited spending power.
 
-A separate mandate issuer signs a scoped permission (max amount, cumulative cap, category, quantity, merchant allow-list, destination, expiry). The agent carries that mandate but never holds the issuer's private key. Before any payment reaches the gateway, the Passport runs ten deterministic checks against the signed mandate and returns ALLOW / CONFIRM / BLOCK with a machine-readable reason code.
+A separate mandate issuer signs a scoped permission (max amount, cumulative cap, category, quantity, merchant allow-list, destination, expiry). The agent carries that mandate but never holds the issuer's private key. Before any payment reaches the gateway, the Passport runs ten deterministic checks against the signed mandate and returns ALLOW / BLOCK with a machine-readable reason code.
 
 The governing rule: an agent may use authority, it may never create or widen it.
 
@@ -37,7 +37,7 @@ Canonical serialisation + Ed25519 sign/verify	1	done
 Issuer service, mandate signing, /public-key	1	done
 Check pipeline, fail-closed, short-circuit	1	done
 Checks 02 mandate-sig, 03 expiry, 05 category, 06 quantity, 07 amount	1	done
-Prisma schema (7 models), seed, demo script	1	done
+Prisma schema (8 models), seed, demo script	1	done
 Check 01 agent signature	2	done
 Check 04 merchant, 08 destination	2	done
 Check 09 replay nonce (DB unique constraint)	2	done
@@ -58,8 +58,9 @@ Real-LLM brain (AGENT_BRAIN=llm), wired to Groq (Prompt C)	—	done — apps/age
 Docs pack (11 files)	6	done — README + 10 files in docs/, all under their word limits, every number traced to docs/results.json or a real audit row
 Agent registration hardening (immutable key per agentId)	—	done — apps/passport/src/registry.ts: same agentId + same key is an idempotent 200, same agentId + different key is a 409 and an audit_events row; apps/passport/test/agent-registration.test.ts, 4/4 pass
 Fresh-clone verification, secrets scan, submission pack	7	done — two fresh clones ran pnpm demo start to finish after fixing the missing `pnpm db:generate` step; full-history secrets scan found nothing; docs/VIDEO.md, docs/SUBMISSION.md, LICENSE added. Deployment (optional, item 6) skipped — no cloud credentials in this environment
-CONFIRM path (yellow)	—	not built — do not claim it in any doc
+CONFIRM path (yellow)	—	not built — removed from the Decision type, the UI, and every reason code; documented only as future work in docs/DECISIONS.md #6. Do not claim it in any doc.
 Signed receipts / non-repudiation	—	not built — do not claim it in any doc
+Targeted hardening + adversarial pass (Prompt D)	—	done — added INFRA_ERROR reason code so a check's own exception (DB error, etc.) never surfaces as that check's business failure code (apps/passport/src/checks/pipeline.ts); removed the never-implemented CONFIRM branch from Decision/UI/CSS/dead reason codes; added zod validation to every path/query param that lacked it (apps/issuer/src/mandates.ts, apps/passport/src/registry.ts, mandateStatus.ts, audit.ts) and a matching FK-violation catch in registry.ts (registry.ts had the same unguarded-insert gap mandates.ts had already fixed); added a global Fastify setErrorHandler to all three services so an unexpected exception returns a generic 500, never a raw DB/stack message; live adversarial pass against the running stack — see docs/JUDGE-QA.md and the phase report. `pnpm test` 29/29, `pnpm typecheck` and `pnpm build` clean.
 Hard rules — never break these
 Nothing in apps/passport/src/checks/ may call an LLM, fetch a URL, or read free text. A check takes two already-parsed objects and returns a verdict. That is all.
 Fail closed. Any thrown error, missing field, or unknown state resolves to BLOCK. An exception must never produce ALLOW.
@@ -97,6 +98,8 @@ Run in numeric order, short-circuit on first failure.
 10	cumulative spend	spent + reserved + amount <= cap	SPEND_CAP_EXCEEDED
 
 Success code is AUTHORISED. Checks 4 and 8 are exact string matches — no prefix matching, no case-insensitive comparison, no fuzzy logic. Boundary case: amountPaise === maxAmountPaise must ALLOW.
+
+A check that throws is not treated as failing its own numbered reason code above — the pipeline's generic catch reports INFRA_ERROR instead, so a DB timeout inside check 10 is never mislabelled SPEND_CAP_EXCEEDED. Still BLOCK either way. See apps/passport/src/checks/pipeline.ts.
 
 Commands
 docker compose up -d      # Postgres 16 only

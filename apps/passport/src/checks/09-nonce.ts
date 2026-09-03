@@ -8,7 +8,6 @@ import { prisma } from "../db.js";
 export const check: Check = {
   id: 9,
   name: "nonce",
-  failCode: ReasonCode.NONCE_REPLAYED,
   async run(ctx): Promise<CheckResult> {
     // The unique constraint on UsedNonce.nonce is the replay check itself:
     // insert and let it fail, never SELECT then INSERT.

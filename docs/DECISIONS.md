@@ -54,11 +54,29 @@ re-explaining every time someone asks "why not just—".
 
 ### 6. Deferring the CONFIRM path
 
-- **Decision:** the Passport returns only `ALLOW` or `BLOCK`; a middle "ask the user"
-  verdict is designed for in the reason codes but not implemented.
+- **Decision:** the Passport returns only `ALLOW` or `BLOCK`. A middle "ask the user"
+  verdict is not implemented anywhere — not in the `Decision` type, not in the UI, not as
+  a reason code. It exists only as this paragraph.
 - **Context:** some legitimate requests are ambiguous enough that a hard block feels too
   strict and a silent allow feels too loose.
 - **Why we chose it:** getting `ALLOW` / `BLOCK` correct, tested, and measured was worth
-  more than a half-built third path with no real way to notify a user yet.
+  more than a half-built third path with no real way to notify a user yet. An earlier pass
+  left `"CONFIRM"` sitting in the `Decision` type and rendered (unreachably) in the web UI;
+  a later hardening pass removed both, on the view that a value nothing ever produces
+  should not exist in the type or the UI at all, not even as a dead branch.
 - **What we gave up:** anything that ideally gets a human's yes/no today either passes
   every check or is blocked outright — no doc or pitch claims otherwise.
+
+### 7. A distinct reason code for infrastructure failures
+
+- **Decision:** a check that throws (DB unreachable, unexpected exception) blocks with
+  `INFRA_ERROR`, never with that check's own business reason code.
+- **Context:** the pipeline's catch-all used to reuse each check's own fail code for any
+  exception, so a database error inside check 10 could read as `SPEND_CAP_EXCEEDED` — a
+  claim the system never actually verified.
+- **Why we chose it:** a reason code is a claim about what was checked. Reporting a
+  business-rule failure for a condition that was never evaluated is a false statement,
+  even though the fail-closed *behaviour* (BLOCK) was already correct either way.
+- **What we gave up:** nothing — the field it replaced (`Check.failCode`) was unused for
+  anything else, so removing it in favour of one pipeline-level code is a strict
+  simplification, not a tradeoff.

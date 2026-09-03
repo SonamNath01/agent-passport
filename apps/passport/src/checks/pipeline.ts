@@ -27,10 +27,16 @@ const checks: Check[] = [
 /**
  * Runs checks 1..10 in order, stopping at the first failure. `checks` in the
  * result only contains the checks that actually ran (fail-fast, no padding).
- * A check throwing is treated as that check failing on its own reason code —
- * fail closed, never let an exception escape as an implicit ALLOW. Checks 09
- * and 10 touch the database (nonce insert, spend reservation), so this runs
- * checks in sequence and awaits each one.
+ * A check only returns its own business reason code for a condition it can
+ * actually verify (see each check file — e.g. check 09 catches exactly the
+ * unique-constraint violation that means "replayed" and rethrows anything
+ * else). Anything that reaches this catch is therefore not a verified
+ * business failure — a DB timeout inside check 10 is not evidence the cap
+ * was exceeded — so it gets its own INFRA_ERROR code instead of borrowing
+ * the code of whichever check happened to be running. Fail closed either
+ * way: an exception never escapes as an implicit ALLOW. Checks 09 and 10
+ * touch the database (nonce insert, spend reservation), so this runs checks
+ * in sequence and awaits each one.
  */
 export async function runPipeline(ctx: CheckContext): Promise<AuthorizeResult> {
   const report: AuthorizeResult["checks"] = [];
@@ -40,7 +46,7 @@ export async function runPipeline(ctx: CheckContext): Promise<AuthorizeResult> {
     try {
       result = await c.run(ctx);
     } catch {
-      result = { ok: false as const, code: c.failCode };
+      result = { ok: false as const, code: ReasonCode.INFRA_ERROR };
     }
 
     report.push({ id: c.id, name: c.name, result });

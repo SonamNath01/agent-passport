@@ -1,6 +1,11 @@
 import type { FastifyInstance } from "fastify";
 import type { Prisma } from "@prisma/client";
+import { z } from "zod";
 import { prisma } from "./db.js";
+
+const AuditQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(200).optional().default(50),
+});
 
 export interface AuditEventInput {
   type: string;
@@ -25,13 +30,15 @@ export async function recordAuditEvent(event: AuditEventInput): Promise<void> {
 }
 
 export function registerAuditRoutes(app: FastifyInstance): void {
-  app.get("/audit", async (request) => {
-    const { limit } = request.query as { limit?: string };
-    const take = Math.min(Math.max(Number(limit ?? 50) || 50, 1), 200);
+  app.get("/audit", async (request, reply) => {
+    const parsed = AuditQuerySchema.safeParse(request.query);
+    if (!parsed.success) {
+      return reply.code(400).send({ error: "invalid_audit_query", issues: parsed.error.issues });
+    }
 
     const events = await prisma.auditEvent.findMany({
       orderBy: { createdAt: "desc" },
-      take,
+      take: parsed.data.limit,
     });
 
     return { events };

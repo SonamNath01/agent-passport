@@ -1,5 +1,8 @@
 import type { FastifyInstance } from "fastify";
+import { z } from "zod";
 import { prisma } from "./db.js";
+
+const MandateIdParamSchema = z.object({ id: z.string().min(1) });
 
 /**
  * Read-only view of one mandate's cumulative-spend ledger, for the web
@@ -9,7 +12,11 @@ import { prisma } from "./db.js";
  */
 export function registerMandateStatusRoute(app: FastifyInstance): void {
   app.get("/mandates/:id/status", async (request, reply) => {
-    const { id } = request.params as { id: string };
+    const parsedParams = MandateIdParamSchema.safeParse(request.params);
+    if (!parsedParams.success) {
+      return reply.code(400).send({ error: "invalid_mandate_id" });
+    }
+    const { id } = parsedParams.data;
 
     const mandate = await prisma.mandate.findUnique({
       where: { id },

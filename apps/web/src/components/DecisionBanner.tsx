@@ -60,32 +60,22 @@ export default function DecisionBanner({ run, pipelineFinished }: Props) {
     );
   }
 
-  if (decision === "ALLOW") {
-    return (
-      <div className="decision-banner allow">
-        <div className="decision-headline">AUTHORISED</div>
-        <div className="decision-sub">All ten checks passed against the signed mandate.</div>
-        <div className="decision-reason decision-reason-ok">{reasonCode}</div>
-        <div className="decision-gateway">
-          {payment?.status === "CREATED" && payment.orderId
-            ? `RAZORPAY ORDER CREATED · ${payment.orderId}`
-            : payment?.status === "FAILED"
-              ? "RAZORPAY CALL FAILED — SPEND RESERVATION RELEASED"
-              : payment?.status === "PENDING_UNKNOWN"
-                ? "RAZORPAY CALL TIMED OUT — RESERVATION HELD"
-                : "RAZORPAY CALL NOT ATTEMPTED"}
-        </div>
-      </div>
-    );
-  }
-
-  // CONFIRM is a defined Decision value but no check ever returns it yet
-  // (see CLAUDE.md: "CONFIRM path — not built"). Render it honestly if it
-  // ever shows up rather than mislabelling it ALLOW or BLOCK.
+  // Only ALLOW and BLOCK exist on the Decision type (see CLAUDE.md: "CONFIRM
+  // path — not built"), so this is the ALLOW case without a third branch.
   return (
-    <div className="decision-banner confirm">
-      <div className="decision-headline">CONFIRM</div>
-      <div className="decision-reason">{reasonCode}</div>
+    <div className="decision-banner allow">
+      <div className="decision-headline">AUTHORISED</div>
+      <div className="decision-sub">All ten checks passed against the signed mandate.</div>
+      <div className="decision-reason decision-reason-ok">{reasonCode}</div>
+      <div className="decision-gateway">
+        {payment?.status === "CREATED" && payment.orderId
+          ? `RAZORPAY ORDER CREATED · ${payment.orderId}`
+          : payment?.status === "FAILED"
+            ? "RAZORPAY CALL FAILED — SPEND RESERVATION RELEASED"
+            : payment?.status === "PENDING_UNKNOWN"
+              ? "RAZORPAY CALL TIMED OUT — RESERVATION HELD"
+              : "RAZORPAY CALL NOT ATTEMPTED"}
+      </div>
     </div>
   );
 }

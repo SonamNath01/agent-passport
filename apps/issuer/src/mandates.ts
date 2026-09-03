@@ -29,6 +29,8 @@ const CreateMandateSchema = z.object({
   expiresAt: isoDateTimeWithOffset,
 });
 
+const MandateIdParamSchema = z.object({ id: z.string().min(1) });
+
 export function registerMandateRoutes(app: FastifyInstance, keyPair: KeyPairBase64): void {
   app.post("/mandates", async (request, reply) => {
     const parsed = CreateMandateSchema.safeParse(request.body);
@@ -84,7 +86,11 @@ export function registerMandateRoutes(app: FastifyInstance, keyPair: KeyPairBase
   });
 
   app.get("/mandates/:id", async (request, reply) => {
-    const { id } = request.params as { id: string };
+    const parsedParams = MandateIdParamSchema.safeParse(request.params);
+    if (!parsedParams.success) {
+      return reply.code(400).send({ error: "invalid_mandate_id" });
+    }
+    const { id } = parsedParams.data;
     const row = await prisma.mandate.findUnique({ where: { id } });
     if (!row) {
       return reply.code(404).send({ error: "mandate_not_found" });
@@ -116,7 +122,11 @@ export function registerMandateRoutes(app: FastifyInstance, keyPair: KeyPairBase
   });
 
   app.post("/mandates/:id/revoke", async (request, reply) => {
-    const { id } = request.params as { id: string };
+    const parsedParams = MandateIdParamSchema.safeParse(request.params);
+    if (!parsedParams.success) {
+      return reply.code(400).send({ error: "invalid_mandate_id" });
+    }
+    const { id } = parsedParams.data;
 
     try {
       const mandate = await prisma.mandate.update({

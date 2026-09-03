@@ -7,6 +7,42 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const KEYS_DIR = join(__dirname, "..", "..", "..", ".keys");
 const IDENTITY_FILE = join(KEYS_DIR, "agent.json");
 
+// Passport itself retries the issuer up to 10x/1s before it even starts
+// listening (apps/passport/src/index.ts), so a cold `pnpm dev` can leave the
+// Passport unreachable for 10+ seconds on its own. Budget comfortably past
+// that worst case rather than matching it exactly.
+const PASSPORT_FETCH_ATTEMPTS = 20;
+const PASSPORT_RETRY_DELAY_MS = 1000;
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
+ * `pnpm dev` starts all four services in parallel, so on a cold start this
+ * agent can try to register before the Passport is listening — the same
+ * race apps/passport/src/index.ts already retries around for the issuer.
+ * Retries only a connection-level failure (the Passport isn't up yet), not
+ * an HTTP status the Passport actually returned — a real 404/409 is an
+ * answer, not something more waiting will fix.
+ */
+async function fetchWithRetry(url: string, init?: RequestInit): Promise<Response> {
+  let lastErr: unknown;
+  for (let attempt = 1; attempt <= PASSPORT_FETCH_ATTEMPTS; attempt++) {
+    try {
+      return await fetch(url, init);
+    } catch (err) {
+      lastErr = err;
+      if (attempt < PASSPORT_FETCH_ATTEMPTS) {
+        await sleep(PASSPORT_RETRY_DELAY_MS);
+      }
+    }
+  }
+  throw new Error(
+    `could not reach passport at ${url} after ${PASSPORT_FETCH_ATTEMPTS} attempts: ${(lastErr as Error).message}`,
+  );
+}
+
 export interface AgentIdentity {
   agentId: string;
   publicKey: string;
@@ -32,7 +68,7 @@ export interface AgentIdentity {
 export async function loadOrRegisterAgentIdentity(passportUrl: string, userId: string): Promise<AgentIdentity> {
   if (existsSync(IDENTITY_FILE)) {
     const identity = JSON.parse(readFileSync(IDENTITY_FILE, "utf-8")) as AgentIdentity;
-    const check = await fetch(`${passportUrl}/agents/${identity.agentId}`);
+    const check = await fetchWithRetry(`${passportUrl}/agents/${identity.agentId}`);
     if (check.ok) {
       return identity;
     }
@@ -61,7 +97,7 @@ async function registerIdentity(
   publicKey: string,
   agentId?: string,
 ): Promise<string> {
-  const res = await fetch(`${passportUrl}/agents/register`, {
+  const res = await fetchWithRetry(`${passportUrl}/agents/register`, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ agentId, userId, name: "Shopping Agent", publicKey }),

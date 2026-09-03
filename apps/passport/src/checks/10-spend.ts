@@ -7,7 +7,6 @@ import { reserve } from "../ledger.js";
 export const check: Check = {
   id: 10,
   name: "spend",
-  failCode: ReasonCode.SPEND_CAP_EXCEEDED,
   async run(ctx): Promise<CheckResult> {
     const reservationId = await reserve(
       ctx.mandate.mandateId,

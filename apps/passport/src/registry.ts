@@ -1,5 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
+import { Prisma } from "@prisma/client";
 import { prisma } from "./db.js";
 import { recordAuditEvent } from "./audit.js";
 
@@ -9,6 +10,8 @@ const RegisterAgentSchema = z.object({
   name: z.string().min(1),
   publicKey: z.string().min(1),
 });
+
+const AgentIdParamSchema = z.object({ id: z.string().min(1) });
 
 export function registerAgentRoutes(app: FastifyInstance): void {
   app.post("/agents/register", async (request, reply) => {
@@ -41,13 +44,23 @@ export function registerAgentRoutes(app: FastifyInstance): void {
       }
     }
 
-    const agent = await prisma.agent.create({ data: { id: agentId, userId, name, publicKey } });
-
-    return reply.code(201).send({ agentId: agent.id, publicKey: agent.publicKey });
+    try {
+      const agent = await prisma.agent.create({ data: { id: agentId, userId, name, publicKey } });
+      return reply.code(201).send({ agentId: agent.id, publicKey: agent.publicKey });
+    } catch (err) {
+      if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2003") {
+        return reply.code(400).send({ error: "unknown_user" });
+      }
+      throw err;
+    }
   });
 
   app.get("/agents/:id", async (request, reply) => {
-    const { id } = request.params as { id: string };
+    const parsedParams = AgentIdParamSchema.safeParse(request.params);
+    if (!parsedParams.success) {
+      return reply.code(400).send({ error: "invalid_agent_id" });
+    }
+    const { id } = parsedParams.data;
     const agent = await prisma.agent.findUnique({ where: { id } });
 
     if (!agent) {

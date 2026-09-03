@@ -36,7 +36,7 @@ export interface TransactionRequest {
 
 export type UnsignedTransactionRequest = Omit<TransactionRequest, "agentSignature">;
 
-export type Decision = "ALLOW" | "CONFIRM" | "BLOCK";
+export type Decision = "ALLOW" | "BLOCK";
 
 export type CheckResult = { ok: true } | { ok: false; code: ReasonCode };
 
@@ -62,8 +62,6 @@ export interface CheckContext {
 export interface Check {
   id: number;
   name: string;
-  /** Reason code this check reports when it fails closed on an unexpected internal error. */
-  failCode: ReasonCode;
   run(ctx: CheckContext): CheckResult | Promise<CheckResult>;
 }
 

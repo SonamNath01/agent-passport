@@ -8,6 +8,11 @@ compose up -d && pnpm db:push && pnpm seed`, then `pnpm dev:issuer` / `pnpm dev:
 / `pnpm dev:agent`). IDs, keys, and signatures shown are real but already used — re-running
 a `POST /authorize` example verbatim gets `NONCE_REPLAYED`, not the original result.
 
+Every endpoint below validates its input with zod and returns a clean `4xx` with a short
+`error` code — never a stack trace. Anything genuinely unexpected (a database error, a bug)
+is caught by a per-service Fastify error handler and returns `500 {"error":"internal_error"}`
+with no internal detail; the real error is only ever logged server-side.
+
 ## Issuer (`:4001`) — `apps/issuer/src/`
 
 ### `GET /public-key`
