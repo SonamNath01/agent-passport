@@ -10,6 +10,7 @@ import { check as check07 } from "./07-amount.js";
 import { check as check08 } from "./08-destination.js";
 import { check as check09 } from "./09-nonce.js";
 import { check as check10 } from "./10-spend.js";
+import { check as check11 } from "./11-mandate-agent.js";
 
 const checks: Check[] = [
   check01,
@@ -22,10 +23,11 @@ const checks: Check[] = [
   check08,
   check09,
   check10,
+  check11,
 ];
 
 /**
- * Runs checks 1..10 in order, stopping at the first failure. `checks` in the
+ * Runs checks 1..11 in order, stopping at the first failure. `checks` in the
  * result only contains the checks that actually ran (fail-fast, no padding).
  * A check only returns its own business reason code for a condition it can
  * actually verify (see each check file — e.g. check 09 catches exactly the
@@ -34,9 +36,17 @@ const checks: Check[] = [
  * business failure — a DB timeout inside check 10 is not evidence the cap
  * was exceeded — so it gets its own INFRA_ERROR code instead of borrowing
  * the code of whichever check happened to be running. Fail closed either
- * way: an exception never escapes as an implicit ALLOW. Checks 09 and 10
- * touch the database (nonce insert, spend reservation), so this runs checks
+ * way: an exception never escapes as an implicit ALLOW. Checks 09, 10 and
+ * 11 touch the database or its own persisted mandate, so this runs checks
  * in sequence and awaits each one.
+ *
+ * Check 11 runs last, appended rather than inserted after check 2 where it
+ * would semantically belong — see docs/DECISIONS.md #8 for why (renumbering
+ * checks 3-10 would invalidate specific check numbers already cited in
+ * prose elsewhere: docs/INCIDENT.md, docs/VIDEO.md, docs/DEMO.md). Running
+ * last means a mismatched request still reserves spend at check 10 before
+ * check 11 catches it; authorize.ts already releases that reservation on
+ * any BLOCK, so it's a wasted round trip, not a correctness gap.
  */
 export async function runPipeline(ctx: CheckContext): Promise<AuthorizeResult> {
   const report: AuthorizeResult["checks"] = [];

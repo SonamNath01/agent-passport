@@ -22,11 +22,13 @@ export default function DecisionBanner({ run, pipelineFinished }: Props) {
     );
   }
 
+  const checkCount = run.result.checks.length;
+
   if (!pipelineFinished) {
     return (
       <div className="decision-banner pending">
         <div className="decision-headline">RUNNING SECURITY PIPELINE…</div>
-        <div className="decision-sub">Evaluating checks 1 through 10 against the signed mandate.</div>
+        <div className="decision-sub">Evaluating checks 1 through {checkCount} against the signed mandate.</div>
       </div>
     );
   }
@@ -65,7 +67,7 @@ export default function DecisionBanner({ run, pipelineFinished }: Props) {
   return (
     <div className="decision-banner allow">
       <div className="decision-headline">AUTHORISED</div>
-      <div className="decision-sub">All ten checks passed against the signed mandate.</div>
+      <div className="decision-sub">All {checkCount} checks passed against the signed mandate.</div>
       <div className="decision-reason decision-reason-ok">{reasonCode}</div>
       <div className="decision-gateway">
         {payment?.status === "CREATED" && payment.orderId

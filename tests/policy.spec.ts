@@ -1,11 +1,14 @@
 /**
- * The full policy matrix: all thirteen cases from CLAUDE.md's phase-5 prompt,
- * each driving the ten-check pipeline directly (no HTTP, no gateway) so every
- * case proves exactly one check's verdict. A single well-formed baseline
- * mandate + request is built per test and exactly one field is mutated, so a
- * pass here means that specific check — not an earlier one — produced the
- * reason code. Checks 9 and 10 touch Postgres; every other case is pure
- * signature/field comparison and needs no DB row at all.
+ * The full policy matrix: thirteen cases from CLAUDE.md's phase-5 prompt plus
+ * one more added when check 11 (mandate-agent binding) was found missing and
+ * fixed, each driving the eleven-check pipeline directly (no HTTP, no
+ * gateway) so every case proves exactly one check's verdict. A single
+ * well-formed baseline mandate + request is built per test and exactly one
+ * field is mutated, so a pass here means that specific check — not an
+ * earlier one — produced the reason code. Checks 9 and 10 touch Postgres
+ * (and case 14, run last in the pipeline, needs the mandate persisted to get
+ * that far); every other case is pure signature/field comparison and needs
+ * no DB row at all.
  */
 import { randomUUID } from "node:crypto";
 import { describe, expect, it } from "vitest";
@@ -236,5 +239,35 @@ describe("policy matrix", () => {
     const result = await runPipeline(baseCtx(mandate, request, issuer.publicKey, agent.publicKey));
     expect(result.decision).toBe("ALLOW");
     expect(result.reasonCode).toBe(ReasonCode.AUTHORISED);
+  });
+
+  it("14. blocks a genuine agent B presenting agent A's mandate with agent B's own valid signature", async () => {
+    const issuer = generateKeyPair();
+    const agentA = generateKeyPair();
+    const agentB = generateKeyPair();
+    // The mandate is issued to A. Every field of the request otherwise
+    // satisfies it — merchant, category, quantity, amount, destination all
+    // pass — but it's signed and presented by B, a different, genuinely
+    // registered agent with its own real key. Nothing here is forged.
+    const agentAId = `agent_test_${randomUUID()}`;
+    const agentBId = `agent_test_${randomUUID()}`;
+    const mandate = makeMandate(issuer.privateKey, { agentId: agentAId });
+    const request = makeRequest(mandate, agentB.privateKey, { agentId: agentBId });
+    await persistMandate(mandate, agentA.publicKey);
+    const result = await runPipeline(baseCtx(mandate, request, issuer.publicKey, agentB.publicKey));
+
+    expect(result.decision).toBe("BLOCK");
+    expect(result.reasonCode).toBe(ReasonCode.MANDATE_AGENT_MISMATCH);
+
+    // Checks 1-10 all actually ran and passed — this isn't short-circuiting
+    // on a forged signature or a bad amount, it's specifically the mandate/
+    // agent binding, and only the binding, that catches this.
+    expect(result.checks).toHaveLength(11);
+    for (const c of result.checks.slice(0, 10)) {
+      expect(c.result.ok, `check ${c.id} (${c.name}) should have passed`).toBe(true);
+    }
+    expect(result.checks[10].id).toBe(11);
+    expect(result.checks[10].name).toBe("mandate-agent");
+    expect(result.checks[10].result).toEqual({ ok: false, code: ReasonCode.MANDATE_AGENT_MISMATCH });
   });
 });

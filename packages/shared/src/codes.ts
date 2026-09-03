@@ -10,6 +10,7 @@ export const ReasonCode = {
   DESTINATION_MISMATCH: "DESTINATION_MISMATCH",
   NONCE_REPLAYED: "NONCE_REPLAYED",
   SPEND_CAP_EXCEEDED: "SPEND_CAP_EXCEEDED",
+  MANDATE_AGENT_MISMATCH: "MANDATE_AGENT_MISMATCH",
   AUTHORISED: "AUTHORISED",
   // Not a business-rule failure — a check couldn't run at all (DB unreachable,
   // unexpected exception) and the pipeline fell through to this instead of

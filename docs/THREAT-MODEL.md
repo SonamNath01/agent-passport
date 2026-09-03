@@ -22,11 +22,11 @@ one.
   requests instead of one large one to try to slip under a limit.
 - Read every `BLOCK` reason code the Passport returns and adjust the next attempt.
 - Control the timing of requests, including firing several at once.
-- Spend against a mandate issued to a *different* agent, as long as it presents its own
-  genuine signature and its request happens to satisfy that mandate's other constraints.
-  No check compares `mandate.agentId` to the requesting agent's own id — see
-  `docs/JUDGE-QA.md` Q11 for the live test that confirmed this and why it wasn't fixed in
-  the same pass that found it.
+- Attempt to spend against a mandate issued to a *different* agent, presenting its own
+  genuine signature and a request that satisfies that mandate's other constraints. It can
+  *attempt* this — check 11 is what stops it (see the "cannot do" list below). A live
+  adversarial pass found this unguarded before check 11 existed; see `docs/JUDGE-QA.md`
+  Q11 for the full history.
 
 ## What an attacker who fully controls the agent cannot do
 
@@ -40,23 +40,25 @@ one.
 - Exceed the cumulative cap by splitting one big purchase into many small ones. Check 10
   reserves against the real ledger with an atomic update; there is no window where the
   agent's own count of "how much have I spent" is what gets trusted.
-- Reach the Razorpay gateway through any code path this project ships — the only door to
-  money `apps/agent`'s own code ever calls is `POST /authorize`. In the current dev setup
-  the agent process's *environment* does contain the Razorpay credentials (it loads the
-  same root `.env` file the Passport does, and Node's `--env-file` doesn't scope by
-  service), even though `apps/agent/src/` never reads them — this isn't reachable under
-  the prompt-injection threat model above, but would be under a stronger one (arbitrary
-  code execution in the agent process). See `docs/JUDGE-QA.md` Q12.
+- Spend against a mandate issued to a different agent. Check 11 compares
+  `request.agentId` to `mandate.agentId` — a second, unrelated, validly-registered agent
+  with its own genuine signature still gets `MANDATE_AGENT_MISMATCH`. See
+  `docs/JUDGE-QA.md` Q11.
+- Reach the Razorpay gateway through any code path this project ships, or even hold the
+  credentials to. `apps/agent` loads its own `apps/agent/.env` (see `docs/RUNBOOK.md`),
+  which structurally cannot contain `RAZORPAY_KEY_ID`/`RAZORPAY_KEY_SECRET` — they live
+  only in the root `.env` the agent process never loads. This used to be true only of the
+  agent's *code*, not its *environment*; see `docs/JUDGE-QA.md` Q12 for what changed.
 
 ## The trusted computing base
 
 The trusted computing base is the issuer, the Passport, and the Postgres database they
 both write to. This is the honest part: **if the issuer's private key or the Passport
 process itself is compromised, every guarantee above fails.** A compromised issuer can
-sign a mandate with no real limits. A compromised Passport can skip its own ten checks
+sign a mandate with no real limits. A compromised Passport can skip its own eleven checks
 and return `ALLOW` regardless of what the mandate says. This project does not defend
 against compromise of its own trusted computing base — that is a host-security and
-key-management problem, not something ten comparison checks can solve. What it defends
+key-management problem, not something eleven comparison checks can solve. What it defends
 against is the agent, specifically, being the compromised part, because the agent is the
 one component built to read attacker-controlled text all day.
 
@@ -74,7 +76,7 @@ the user asked for — an agent can buy a legitimate but bad-value item that sti
 every mandate constraint, and nothing here judges that. Whether the user set sensible
 limits in the first place. Fraud scoring, KYC, and dispute handling after money has
 already moved. And any content-level judgment about whether a product description is
-deceptive — none of the ten checks read product descriptions at all, which is exactly why
+deceptive — none of the checks read product descriptions at all, which is exactly why
 they can't be manipulated by one.
 
 Agent registration has no operator authentication, but keys are immutable once
@@ -82,4 +84,4 @@ registered; operator auth on registration is what a production deployment adds.
 
 ## The precise claim
 
-We prevent a compromised or manipulated agent from converting unauthorised transaction intent into an authorised payment, provided the transaction violates a mechanically enforceable mandate constraint **and the mandate presented actually belongs to the presenting agent** — the second half of that clause is not yet itself a mechanically enforced constraint (see the mandate-ownership gap above and `docs/JUDGE-QA.md` Q11).
+We prevent a compromised or manipulated agent from converting unauthorised transaction intent into an authorised payment, provided the transaction violates a mechanically enforceable mandate constraint. "Mechanically enforceable" now includes whether the mandate presented actually belongs to the presenting agent (check 11) — an earlier version of this project could not make that claim; see `docs/JUDGE-QA.md` Q11 for what changed and why.

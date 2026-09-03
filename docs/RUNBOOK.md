@@ -9,7 +9,8 @@ actually hit.
 git clone <this-repo>
 cd agent-passport
 pnpm install
-cp .env.example .env        # then fill in RAZORPAY_KEY_ID / RAZORPAY_KEY_SECRET
+cp .env.example .env                        # then fill in RAZORPAY_KEY_ID / RAZORPAY_KEY_SECRET
+cp apps/agent/.env.example apps/agent/.env  # agent-only vars — see "Two .env files" below
 pnpm db:generate            # generates the Prisma client into node_modules — pnpm install
                              # does not do this on its own; a fresh clone's first seed/dev
                              # run fails with "does not provide an export named 'PrismaClient'"
@@ -20,23 +21,43 @@ pnpm seed                   # creates user_demo, agent_demo, prints the demo pri
 pnpm dev                    # starts issuer, passport, agent, and web together
 ```
 
+## Two `.env` files, on purpose
+
+The root `.env` (loaded by `apps/issuer` and `apps/passport`) and `apps/agent/.env`
+(loaded only by `apps/agent`) are separate files — not a shared one, and not by accident.
+`apps/agent` is the one process this project assumes can be fully compromised; giving it
+its own env file that structurally cannot contain `RAZORPAY_KEY_ID`/`RAZORPAY_KEY_SECRET`
+means "the agent can't reach the gateway" is true of what the process *can hold*, not just
+what its code happens not to read. See `docs/JUDGE-QA.md` Q12. `pnpm measure` is the one
+script that needs both — it imports the agent's brain code in-process — so its command
+loads `--env-file=.env --env-file=apps/agent/.env` together.
+
 ## Environment variables
+
+Root `.env` (issuer, passport):
 
 | Variable | Example | Read by | Secret? |
 |---|---|---|---|
 | `DATABASE_URL` | `postgresql://passport:passport@localhost:5432/agent_passport` | issuer, passport | contains a DB password |
 | `ISSUER_PORT` | `4001` | issuer | no |
 | `PASSPORT_PORT` | `4000` | passport | no |
-| `AGENT_PORT` | `4002` | agent | no |
-| `ISSUER_URL` | `http://localhost:4001` | passport, agent | no |
-| `PASSPORT_URL` | `http://localhost:4000` | agent | no |
+| `ISSUER_URL` | `http://localhost:4001` | passport | no |
 | `RAZORPAY_KEY_ID` | `rzp_test_...` | passport only | no (but keep test-mode only) |
 | `RAZORPAY_KEY_SECRET` | (from your Razorpay dashboard) | passport only | **yes** |
 | `RAZORPAY_TIMEOUT_MS` | `8000` | passport | no |
-| `AGENT_BRAIN` | `scripted` (default) or `llm` | agent only | no |
-| `LLM_PROVIDER` | `groq` (default) | agent only, and only when `AGENT_BRAIN=llm` | no |
-| `LLM_MODEL` | `openai/gpt-oss-20b` (default) | agent only, and only when `AGENT_BRAIN=llm` | no |
-| `GROQ_API_KEY` | `gsk_...` | agent only, and only when `AGENT_BRAIN=llm` | **yes** |
+
+`apps/agent/.env` (agent only — a separate file so the agent process cannot hold the
+Razorpay credentials even unused; see "Two `.env` files, on purpose" above):
+
+| Variable | Example | Read by | Secret? |
+|---|---|---|---|
+| `ISSUER_URL` | `http://localhost:4001` | agent | no |
+| `PASSPORT_URL` | `http://localhost:4000` | agent | no |
+| `AGENT_PORT` | `4002` | agent | no |
+| `AGENT_BRAIN` | `scripted` (default) or `llm` | agent | no |
+| `LLM_PROVIDER` | `groq` (default) | agent, only when `AGENT_BRAIN=llm` | no |
+| `LLM_MODEL` | `openai/gpt-oss-20b` (default) | agent, only when `AGENT_BRAIN=llm` | no |
+| `GROQ_API_KEY` | `gsk_...` | agent, only when `AGENT_BRAIN=llm` | **yes** |
 
 `apps/web` reads no environment variables — it proxies same-origin paths to the other
 three services (`apps/web/vite.config.ts`) and never talks to them directly.

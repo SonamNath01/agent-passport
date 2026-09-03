@@ -68,7 +68,7 @@ curl http://localhost:4000/agents/cmtibbp0e001rdqwh2sr7g5so
 ```
 
 ### `POST /authorize`
-Runs the ten-check pipeline. Body: `{mandate: Mandate, request: TransactionRequest}` —
+Runs the eleven-check pipeline. Body: `{mandate: Mandate, request: TransactionRequest}` —
 same shapes as `POST /mandates`' response and a signed purchase request (`mandateId,
 agentId, merchantId, category, subcategory, amountPaise, quantity, destination, nonce,
 timestamp, agentSignature`). Returns `200` always (a `BLOCK` is not an HTTP error) with

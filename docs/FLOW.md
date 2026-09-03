@@ -16,7 +16,7 @@ dev:passport`, `pnpm dev:agent`), prompt: *"Find me running shoes, my budget is 
 5. The agent picks a product from the catalog: Everyday Running Shoes, ₹4,500.
 6. The agent signs a transaction request with its own private key and sends the mandate
    and the request together to the Passport: `POST /authorize` on port 4000.
-7. The Passport runs the ten checks in order. All ten pass.
+7. The Passport runs the eleven checks in order. All eleven pass.
 8. The Passport calls the Razorpay test API to create an order and gets back
    `order_TWgIF0ZbA6Ajun`.
 9. The Passport commits ₹4,500 into the mandate's spend ledger, writes one `Transaction`
@@ -37,17 +37,19 @@ sequenceDiagram
     User->>Agent: mandate + prompt
     Agent->>Agent: pick product, sign request
     Agent->>Passport: POST /authorize
-    Passport->>Passport: run 10 checks
+    Passport->>Passport: run 11 checks
     Passport->>Razorpay: create order
     Razorpay-->>Passport: order_TWgIF0ZbA6Ajun
     Passport->>Ledger: commit spend, write audit row
     Passport-->>Agent: ALLOW / AUTHORISED
 ```
 
-## The ten checks
+## The eleven checks
 
 Run in this exact order. The first one to fail stops the pipeline — later checks are
-never run, and are reported as "not evaluated," not as a pass.
+never run, and are reported as "not evaluated," not as a pass. Check 11 runs last rather
+than right after the two signature checks, where it would semantically belong — see
+`docs/DECISIONS.md` #8 for why.
 
 | # | Name | What it compares | Reason code on failure |
 |---|------|-------------------|-------------------------|
@@ -61,10 +63,11 @@ never run, and are reported as "not evaluated," not as a pass.
 | 8 | destination | `request.destination === mandate.destination` | `DESTINATION_MISMATCH` |
 | 9 | replay | nonce not already used (database unique constraint) | `NONCE_REPLAYED` |
 | 10 | cumulative spend | `spent + reserved + amount <= cumulativeLimitPaise` | `SPEND_CAP_EXCEEDED` |
+| 11 | mandate agent | `request.agentId === mandate.agentId` | `MANDATE_AGENT_MISMATCH` |
 
-Checks 4 and 8 are exact string matches — no prefix matching, no case-insensitive
+Checks 4, 8 and 11 are exact string matches — no prefix matching, no case-insensitive
 comparison. If `amountPaise` is exactly equal to `maxAmountPaise`, check 7 passes; the
-limit is inclusive, not exclusive. Success is `ALLOW` / `AUTHORISED`, once all ten pass.
+limit is inclusive, not exclusive. Success is `ALLOW` / `AUTHORISED`, once all eleven pass.
 
 ## The same flow, blocked
 
@@ -78,7 +81,7 @@ identical — the mandate is issued and signed exactly as above. Then:
    isn't expired or revoked, the merchant and category and quantity are all fine.
 9. Check 7 (amount) compares ₹20,000 against the ₹5,000 limit and fails. The pipeline
    stops here and returns `BLOCK` / `PRICE_LIMIT_EXCEEDED`.
-10. Checks 8, 9, and 10 never run. They show as "not evaluated," not as passed.
+10. Checks 8 through 11 never run. They show as "not evaluated," not as passed.
 
 What does **not** happen after the block: no call to Razorpay, no order id, nothing
 reserved against the cumulative cap, and no `payment` field on the response at all. One

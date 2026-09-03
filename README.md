@@ -7,7 +7,7 @@ cap, a product category, a quantity limit, a list of approved merchants, a desti
 account, and an expiry date. The agent carries this mandate into every purchase it tries
 to make, but it never holds the issuer's private signing key, so it cannot write or widen
 a mandate itself. Before any payment reaches a gateway, a service called the **Passport**
-runs ten checks against the signed mandate and returns one of two verdicts — ALLOW or
+runs eleven checks against the signed mandate and returns one of two verdicts — ALLOW or
 BLOCK — with a machine-readable reason code.
 
 ## The problem
@@ -25,7 +25,7 @@ it was never authorised to move.
 flowchart LR
     U[User sets limits] --> I[Issuer signs mandate]
     I --> A[Agent picks a product]
-    A --> P["Passport: 10 checks"]
+    A --> P["Passport: 11 checks"]
     P -->|ALLOW| R[Razorpay test order]
     P -->|BLOCK| L[Audit ledger]
     R --> L
@@ -49,6 +49,10 @@ pnpm install
 cp .env.example .env
 # Edit .env and set RAZORPAY_KEY_ID / RAZORPAY_KEY_SECRET to free test-mode keys
 # from https://dashboard.razorpay.com (test mode only — never live keys).
+
+cp apps/agent/.env.example apps/agent/.env
+# A separate file on purpose — apps/agent never loads the root .env, so it
+# structurally cannot hold the Razorpay credentials. See docs/RUNBOOK.md.
 
 pnpm db:generate           # generates the Prisma client into node_modules
 docker compose up -d      # Postgres 16 on :5432
@@ -90,7 +94,7 @@ check **Poisoned catalog** and run it again to watch check 7 block a manipulated
   the whole project.
 - [docs/DESIGN.md](docs/DESIGN.md) — the four services, who holds which key, the data
   model
-- [docs/FLOW.md](docs/FLOW.md) — one payment, start to finish, and the ten checks
+- [docs/FLOW.md](docs/FLOW.md) — one payment, start to finish, and the eleven checks
 - [docs/THREAT-MODEL.md](docs/THREAT-MODEL.md) — what we assume, what we prevent, what
   we don't
 - [docs/INCIDENT.md](docs/INCIDENT.md) — a real blocked prompt-injection attempt, from
@@ -116,8 +120,3 @@ check **Poisoned catalog** and run it again to watch check 7 block a manipulated
   the scripted brain — see `docs/EVALUATION.md` for the full numbers and caveats.
 - **Not KYC, fraud scoring, or dispute handling.** It enforces limits the user already
   set; it has no opinion on chargebacks after money has moved. See `docs/THREAT-MODEL.md`.
-- **A mandate isn't bound to the agent it names.** No check compares `mandate.agentId` to
-  the requesting agent's own id — a different registered agent can spend against a
-  mandate it was never issued, if its request happens to satisfy that mandate's other
-  constraints. Found live, not fixed — see `docs/JUDGE-QA.md` Q11 for the full case and
-  why it wasn't patched in the same pass that found it.

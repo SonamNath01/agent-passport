@@ -15,7 +15,7 @@
     "demo": "tsx --env-file=.env scripts/demo.ts",
     "demo:2": "tsx --env-file=.env scripts/demo-2.ts",
     "demo:3": "tsx --env-file=.env scripts/demo-3.ts",
-    "measure": "tsx --env-file=.env scripts/measure.ts",
+    "measure": "tsx --env-file=.env --env-file=apps/agent/.env scripts/measure.ts",
     "test": "vitest run",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "build": "pnpm -r --filter=./packages/* --filter=./apps/* build"

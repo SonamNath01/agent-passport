@@ -4,8 +4,9 @@
 
 ## Policy matrix
 
-All thirteen cases from `tests/policy.spec.ts`, each driving the real ten-check pipeline
-directly. Last run: 13/13 pass.
+Fourteen cases from `tests/policy.spec.ts` — the original thirteen plus one added when
+check 11 (mandate-agent binding) was found missing and fixed — each driving the real
+eleven-check pipeline directly. Last run: 14/14 pass.
 
 | # | Case | Expected | Result |
 |---|------|----------|--------|
@@ -22,9 +23,13 @@ directly. Last run: 13/13 pass.
 | 11 | Category mismatch | `BLOCK` / `CATEGORY_MISMATCH` | PASS |
 | 12 | Fully valid transaction | `ALLOW` / `AUTHORISED` | PASS |
 | 13 | Amount exactly at the limit (boundary) | `ALLOW` / `AUTHORISED` | PASS |
+| 14 | Genuine agent B, own valid signature, presenting agent A's mandate | `BLOCK` / `MANDATE_AGENT_MISMATCH` | PASS |
 
 Case 13 is the one off-by-one bugs live in: `amountPaise === maxAmountPaise` must allow,
-not block. It does.
+not block. It does. Case 14 also asserts on the full `checks` array, not just the final
+decision: checks 1 through 10 all show `ok: true` before check 11 blocks — proving this
+isn't an earlier check short-circuiting on a forged signature or a bad field, it's
+specifically and only the mandate/agent binding.
 
 ## Concurrency
 
@@ -103,6 +108,6 @@ signal, not a precise figure.
   above). It does not generalise to other models, providers, or prompts.
 - **A synthetic catalog.** Four products, one of them poisoned, is a controlled test
   fixture, not a real e-commerce catalog with real adversarial variety.
-- **Policy coverage is not the same as security.** Passing thirteen known scenarios shows
-  the ten checks do what they're supposed to on the cases we thought to write. It does not
+- **Policy coverage is not the same as security.** Passing fourteen known scenarios shows
+  the eleven checks do what they're supposed to on the cases we thought to write. It does not
   prove there is no tenth or eleventh way to construct a request that slips past them.

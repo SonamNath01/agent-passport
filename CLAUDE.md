@@ -6,7 +6,7 @@ What this project is
 
 Agent Passport — an authorisation layer that lets an AI agent make payments for a user without ever holding the user's PIN or unlimited spending power.
 
-A separate mandate issuer signs a scoped permission (max amount, cumulative cap, category, quantity, merchant allow-list, destination, expiry). The agent carries that mandate but never holds the issuer's private key. Before any payment reaches the gateway, the Passport runs ten deterministic checks against the signed mandate and returns ALLOW / BLOCK with a machine-readable reason code.
+A separate mandate issuer signs a scoped permission (max amount, cumulative cap, category, quantity, merchant allow-list, destination, expiry). The agent carries that mandate but never holds the issuer's private key. Before any payment reaches the gateway, the Passport runs eleven deterministic checks against the signed mandate and returns ALLOW / BLOCK with a machine-readable reason code.
 
 The governing rule: an agent may use authority, it may never create or widen it.
 
@@ -17,7 +17,7 @@ rule broken
 User states limits
 Issuer signs mandate
 Agent chooses productASSUMED HOSTILE
-Passport: 10 checks
+Passport: 11 checks
 Razorpay test API
 BLOCK + reason code
 Audit ledger
@@ -51,7 +51,7 @@ Web: create mandate / agent activity / Passport dashboard	4	done
 Red attack dashboard state	4	done — BLOCK banner turns red with reason code; checks after the short-circuit point show "not evaluated", not PASS
 Security console redesign (Prompt A)	—	done — apps/web screen 3 rebuilt as a fintech-style console: animated 10-check pipeline staggered from the real decision payload, AUTHORISED/ATTEMPTED/EXCESS violation banner, teal authority/spend panel, collapsible request inspector (signature + issuer key fingerprint), AI-decision-vs-security-authorisation split, live polling audit feed. No apps/passport/src/checks|ledger|razorpay logic touched. One additive field (`budgetRupees`) added to apps/agent's existing /run response so the AI panel can explain an overBudget pick — no new endpoints, no logic change. Screenshots: docs/img/console-allow.png, docs/img/console-block.png
 Demo control panel (Prompt B)	—	done — new "Demo scenarios" tab (apps/web/src/screens/DemoScenarios.tsx + demoScenarios.ts) with 5 buttons, each driving the real issuer/agent/passport services over their real endpoints, no simulated responses: clean purchase (ALLOW, real Razorpay order), prompt injection (BLOCK/PRICE_LIMIT_EXCEEDED), tampered signature (mandate altered post-signing, BLOCK/MANDATE_SIGNATURE_INVALID), replay (same signed request resent via a new apps/web `authorizeDirect` call, BLOCK/NONCE_REPLAYED), concurrent spend (5-way `Promise.all` against a cap sized for exactly 2, BLOCK/SPEND_CAP_EXCEEDED on the rest, cap never breached — verified over 4 separate runs, 2 in-browser). Single-run scenarios render through the existing pipeline visualisation (auto-switches to the Security console tab); concurrent spend shows its own 5-row results table. Reset control calls a new apps/passport POST /demo/reset route (apps/passport/src/demoReset.ts) that clears mandate-scoped tables but deliberately keeps Agent/User rows — narrower than `pnpm demo:reset`, chosen so the already-running agent service's cached identity survives a reset mid-recording. Verified end-to-end in a real Chromium browser (Playwright driver, scratch-only) with zero console errors; `pnpm test` still 29/29.
-Policy matrix tests (13 cases)	5	done — tests/policy.spec.ts, all 13 pass
+Policy matrix tests (14 cases)	5	done — tests/policy.spec.ts, all 14 pass (13 original + case 14 added for check 11)
 Concurrency test (parallel spend race)	5	done — tests/concurrency.spec.ts, 10 rounds of 5-way race in one run, all 10 pass
 Compromise + false-block measurement	5	done — tests/adversarial.spec.ts + scripts/measure.ts; scripted brain: 60% (6/10) attempts compromised agent intent, 0% (0/6) of those produced a payment, 0% (0/20) false blocks — see docs/results.json. LIMITATIONS: scripted brain only, not a real LLM measurement — see notes below
 Real-LLM brain (AGENT_BRAIN=llm), wired to Groq (Prompt C)	—	done — apps/agent/src/llmProvider.ts is a thin OpenAI-compatible fetch client (Groq today, config-swappable to another OpenAI-compatible host); apps/agent/src/llmBrain.ts calls it with strict JSON-schema structured output, validates productId/merchantId/amountPaise/quantity against the real catalog (unknown product, mismatched merchant, amount that doesn't match the catalog price, malformed JSON, empty response, timeout, and HTTP 429 all fail closed — see tests run live during this pass), and returns model reasoning shown in the web UI. Model used: openai/gpt-oss-20b on Groq (console.groq.com — an inference provider, not xAI's Grok), verified live. Measured: 20% (2/10) attempts compromised agent intent, 0% (0/2) of those produced a payment, 0% (0/20) false blocks — see docs/results.json's "llm" block and docs/EVALUATION.md. (An earlier run under the same config saw 30% (3/10), with one call timing out and failing closed; run-to-run variance is expected at n=10.) @anthropic-ai/sdk removed from apps/agent/package.json (unused, was the repo's only caret-ranged dependency) — no new dependency added, provider layer uses plain fetch.
@@ -60,7 +60,8 @@ Agent registration hardening (immutable key per agentId)	—	done — apps/passp
 Fresh-clone verification, secrets scan, submission pack	7	done — two fresh clones ran pnpm demo start to finish after fixing the missing `pnpm db:generate` step; full-history secrets scan found nothing; docs/VIDEO.md, docs/SUBMISSION.md, LICENSE added. Deployment (optional, item 6) skipped — no cloud credentials in this environment
 CONFIRM path (yellow)	—	not built — removed from the Decision type, the UI, and every reason code; documented only as future work in docs/DECISIONS.md #6. Do not claim it in any doc.
 Signed receipts / non-repudiation	—	not built — do not claim it in any doc
-Targeted hardening + adversarial pass (Prompt D)	—	done — added INFRA_ERROR reason code so a check's own exception (DB error, etc.) never surfaces as that check's business failure code (apps/passport/src/checks/pipeline.ts); removed the never-implemented CONFIRM branch from Decision/UI/CSS/dead reason codes; added zod validation to every path/query param that lacked it (apps/issuer/src/mandates.ts, apps/passport/src/registry.ts, mandateStatus.ts, audit.ts) and a matching FK-violation catch in registry.ts (registry.ts had the same unguarded-insert gap mandates.ts had already fixed); added a global Fastify setErrorHandler to all three services so an unexpected exception returns a generic 500, never a raw DB/stack message; live adversarial pass against the running stack — see docs/JUDGE-QA.md and the phase report. `pnpm test` 29/29, `pnpm typecheck` and `pnpm build` clean.
+Targeted hardening + adversarial pass (Prompt D)	—	done — added INFRA_ERROR reason code so a check's own exception (DB error, etc.) never surfaces as that check's business failure code (apps/passport/src/checks/pipeline.ts); removed the never-implemented CONFIRM branch from Decision/UI/CSS/dead reason codes; added zod validation to every path/query param that lacked it (apps/issuer/src/mandates.ts, apps/passport/src/registry.ts, mandateStatus.ts, audit.ts) and a matching FK-violation catch in registry.ts (registry.ts had the same unguarded-insert gap mandates.ts had already fixed); added a global Fastify setErrorHandler to all three services so an unexpected exception returns a generic 500, never a raw DB/stack message; live adversarial pass against the running stack — see docs/JUDGE-QA.md and the phase report. `pnpm test` 29/29, `pnpm typecheck` and `pnpm build` clean. Found and reported (not fixed in this pass) two gaps: no check bound a mandate to its named agent, and apps/agent's environment held the unused Razorpay credentials — see docs/JUDGE-QA.md Q11/Q12 as they stood then.
+Check 11 (mandate-agent binding) + apps/agent env split	—	done — both gaps found in the pass above are now closed. Check 11 (apps/passport/src/checks/11-mandate-agent.ts) compares request.agentId to mandate.agentId, appended last (see docs/DECISIONS.md #8 for why not renumbered in); new MANDATE_AGENT_MISMATCH reason code; tests/policy.spec.ts case 14 constructs a genuine mismatch (agent B, its own real key, presenting agent A's mandate) and asserts checks 1-10 all show PASS in the response before check 11 blocks it. apps/agent now loads its own gitignored apps/agent/.env (apps/agent/.env.example added) instead of the shared root .env — it structurally cannot hold RAZORPAY_KEY_ID/SECRET any more, not just conventionally. `pnpm measure` updated to load both env files (it imports agent brain code in-process). Web UI's check-count text (apps/web/src/components/SecurityPipeline.tsx, DecisionBanner.tsx) was hardcoded to "10"/"ten" in two places — fixed to read the real count off the response instead of a literal, so this can't go stale again. Full docker compose down -v cold start + all five demo scenarios reverified in a real browser, zero console errors. `pnpm test` 30/30, `pnpm typecheck` and `pnpm build` clean.
 Hard rules — never break these
 Nothing in apps/passport/src/checks/ may call an LLM, fetch a URL, or read free text. A check takes two already-parsed objects and returns a verdict. That is all.
 Fail closed. Any thrown error, missing field, or unknown state resolves to BLOCK. An exception must never produce ALLOW.
@@ -81,9 +82,12 @@ Comments explain why, code shows what. Do not comment obvious lines.
 One exported concept per file. No barrel-of-everything utils module.
 The explain-out-loud test: if a file cannot be explained in two sentences, split it.
 Prefer an early return over a nested conditional. Prefer a plain if over a clever ternary chain.
-The ten checks
+The eleven checks
 
-Run in numeric order, short-circuit on first failure.
+Run in numeric order, short-circuit on first failure. Check 11 runs last, appended rather
+than inserted after check 2 where it would semantically belong — see docs/DECISIONS.md #8
+for why (renumbering checks 3-10 would invalidate specific check numbers already cited in
+prose in docs/INCIDENT.md, docs/VIDEO.md, and docs/DEMO.md).
 
 #	Name	Compares	Failure code
 1	agent signature	request signature vs registered agent public key	AGENT_SIGNATURE_INVALID
@@ -96,8 +100,9 @@ Run in numeric order, short-circuit on first failure.
 8	destination	exact match	DESTINATION_MISMATCH
 9	replay	nonce unused (DB unique constraint)	NONCE_REPLAYED
 10	cumulative spend	spent + reserved + amount <= cap	SPEND_CAP_EXCEEDED
+11	mandate agent	request.agentId === mandate.agentId	MANDATE_AGENT_MISMATCH
 
-Success code is AUTHORISED. Checks 4 and 8 are exact string matches — no prefix matching, no case-insensitive comparison, no fuzzy logic. Boundary case: amountPaise === maxAmountPaise must ALLOW.
+Success code is AUTHORISED. Checks 4, 8 and 11 are exact string matches — no prefix matching, no case-insensitive comparison, no fuzzy logic. Boundary case: amountPaise === maxAmountPaise must ALLOW.
 
 A check that throws is not treated as failing its own numbered reason code above — the pipeline's generic catch reports INFRA_ERROR instead, so a DB timeout inside check 10 is never mislabelled SPEND_CAP_EXCEEDED. Still BLOCK either way. See apps/passport/src/checks/pipeline.ts.
 

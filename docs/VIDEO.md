@@ -43,10 +43,10 @@ a dark translucent bar, bottom third of the screen, one sentence at a time.
 | 0:00–0:12 | **Create mandate** tab, `localhost:5173` | Sit on the page for 2s, then fill in the defaults (₹5,000 max, footwear, `merchant_nike`/`merchant_zara`, 24h) and click **Issue mandate**. | "An AI shopping agent — spending inside limits a human set first." |
 | 0:12–0:27 | Mandate confirmation / **Create mandate** result | Point at the signed mandate id and issuer signature that appear. | "The issuer signs the limits. The agent never sees that signing key." |
 | 0:27–0:42 | **Agent activity** tab | Type prompt "Find me running shoes, my budget is ₹5000." Leave **Poisoned catalog** unchecked. Click **Run agent**. Let the SSE log fill in. | "Clean catalog: the agent picks a ₹4,500 pair and signs a request." |
-| 0:42–0:52 | **Security console** tab | Let all ten checks render green, then hold on the ALLOW banner and the Razorpay order id. | "All ten checks pass. Real Razorpay test order. Money moves." |
+| 0:42–0:52 | **Security console** tab | Let all eleven checks render green, then hold on the ALLOW banner and the Razorpay order id. | "All eleven checks pass. Real Razorpay test order. Money moves." |
 | 0:52–1:07 | **Agent activity** tab | Check **Poisoned catalog**. Same prompt. Click **Run agent**. Let the SSE log fill in, showing the manipulated pick. | "Same prompt, same ₹5,000 budget — but this listing has a hidden instruction." |
 | 1:07–1:22 | **Security console** tab | Show checks 1–6 green, then check 7 turning red; hold on the red banner and reason code. | "The agent got talked into asking for ₹20,000. Check 7 catches it." |
-| 1:22–1:30 | **Security console** tab, zoomed on the banner | Hold static on `BLOCK / PRICE_LIMIT_EXCEEDED` and "not evaluated" on checks 8–10. | "No gateway call. No money moved. The agent was compromised — the payment wasn't." |
+| 1:22–1:30 | **Security console** tab, zoomed on the banner | Hold static on `BLOCK / PRICE_LIMIT_EXCEEDED` and "not evaluated" on checks 8–11. | "No gateway call. No money moved. The agent was compromised — the payment wasn't." |
 
 Total: 90 seconds across 7 segments. If a segment runs long in the take, trim from
 0:12–0:27 (the mandate-confirmation hold) first — it carries the least new information.

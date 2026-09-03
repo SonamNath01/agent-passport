@@ -13,7 +13,7 @@ Four separate actors, each with one job:
    mandate. It holds the one private key that makes a mandate genuine.
 3. **The agent** uses. It reads a mandate, picks a product, and signs a request. It never
    holds the issuer's key, so it can carry authority but cannot create or widen it.
-4. **The Passport** enforces. It runs ten checks against the signed mandate before any
+4. **The Passport** enforces. It runs eleven checks against the signed mandate before any
    payment reaches a gateway, and refuses anything that fails.
 
 A **mandate** is the signed permission slip itself: max amount, cumulative cap, category,
@@ -52,7 +52,7 @@ same-origin proxy (see `apps/web/vite.config.ts`) and never talks to Razorpay or
 | `DATABASE_URL` | `apps/issuer`, `apps/passport` | agent, web |
 
 The Razorpay row is the one that matters most: if the agent process could ever reach the
-payment gateway directly, the whole design is broken, because the ten checks would be
+payment gateway directly, the whole design is broken, because the eleven checks would be
 optional rather than mandatory. The agent can only ever ask the Passport to authorize a
 request; it has no code path to Razorpay at all.
 
@@ -118,7 +118,7 @@ Eight Prisma tables (`prisma/schema.prisma`), one line each:
 - **No Redis.** Nonce replay and the spend cap both live in Postgres — one unique
   constraint, one atomic conditional `UPDATE` — so there is one datastore that is always
   the source of truth, not two that can drift apart.
-- **No LLM inside the check pipeline.** None of the ten checks call a model, fetch a URL,
+- **No LLM inside the check pipeline.** None of the eleven checks call a model, fetch a URL,
   or read free text. A check is a pure function over two already-parsed, already-verified
   objects. Its answer can't be steered by more injected text, because it never reads any.
 - **A unique index for the nonce**, not a Set in memory or a `SELECT` then `INSERT`. The

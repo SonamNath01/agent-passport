@@ -12,6 +12,7 @@ const CHECK_LABELS: { id: number; label: string }[] = [
   { id: 8, label: "destination" },
   { id: 9, label: "replay" },
   { id: 10, label: "cumulative spend" },
+  { id: 11, label: "mandate ownership" },
 ];
 
 const REVEAL_MIN_MS = 120;
@@ -77,7 +78,9 @@ export default function SecurityPipeline({ run, onFinished }: Props) {
       <div className="pipeline-head">
         <span>Security pipeline</span>
         <span className="pipeline-progress">
-          {run ? `${Math.min(revealCount, checks.length)} / 10 checks run` : "10 checks — idle"}
+          {run
+            ? `${Math.min(revealCount, checks.length)} / ${CHECK_LABELS.length} checks run`
+            : `${CHECK_LABELS.length} checks — idle`}
         </span>
       </div>
       <ol className="pipeline-list">

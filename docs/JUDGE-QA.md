@@ -4,8 +4,10 @@ ask, with the honest answer written from the code — not the pitch version.
 **Read this if:** you want to know exactly where the questioning will hurt before it
 happens.
 
-Two of these (Q11, Q12) are real gaps this pass found and did not fix, on purpose — see
-each answer for why, and `docs/DECISIONS.md` / the phase report for the reasoning.
+Two of these (Q11, Q12) started life as real gaps a live adversarial pass found — and, in
+a follow-up pass, fixed. Both answers below tell the full before-and-after rather than
+hiding the fact that this shipped with the gap first; see `docs/DECISIONS.md` #8 for the
+one design tradeoff the fix itself involved.
 
 ## 1. What stops the agent from just writing its own mandate?
 
@@ -23,14 +25,14 @@ That's the assumption this project is built on, not an edge case — see
 `docs/THREAT-MODEL.md`. A fully controlled agent can choose any product, sign for real
 with its own genuine key, and submit anything as a transaction request. It still cannot
 pass a check it actually violates, forge the issuer's signature, replay a nonce past the
-database's unique constraint, or reach Razorpay (see Q12 for the one place that claim
-gets thinner than it should).
+database's unique constraint, spend against a mandate issued to a different agent (check
+11 — see Q11), or reach Razorpay, including holding the credentials to (see Q12).
 
 ## 3. What if your Passport service itself is compromised?
 
 Then the guarantee is gone. The issuer and the Passport, plus the Postgres database they
 both write to, are the trusted computing base. A compromised Passport can skip its own
-ten checks and return `ALLOW` regardless of what the mandate says — nothing in this
+eleven checks and return `ALLOW` regardless of what the mandate says — nothing in this
 architecture defends against that, and nothing claims to. This project defends against
 the agent being the compromised part, specifically because the agent is the one component
 built to read attacker-controlled text all day. See `docs/THREAT-MODEL.md`.
@@ -48,7 +50,7 @@ verdicts correct, tested, and measured came first.
 Because the checks must never read the same untrusted text the agent reads. A check that
 judges "does this product match the prompt" would itself be manipulable by the same
 injected instruction it's supposed to catch — you'd be asking the attacker's own text to
-grade itself. All ten checks in `apps/passport/src/checks/` compare only already-signed,
+grade itself. All eleven checks in `apps/passport/src/checks/` compare only already-signed,
 already-verified fields (amounts, ids, category strings), never free text, never a URL,
 never a model call. That's a hard rule, not a style choice — see CLAUDE.md.
 
@@ -100,54 +102,73 @@ nothing here judges whether ₹5,000 was a sensible cap. Fraud, KYC, and chargeb
 handling after money has moved. Whether the specific product the agent picked was
 actually a *good* match for the request — an agent can buy a legitimate item that fits
 every mandate constraint and is still a bad purchase; nothing here has an opinion on that.
-And, as of this pass, two more specific things — Q11 and Q12.
+A live adversarial pass also found two more specific things this project didn't protect
+against, at the time — Q11 and Q12 tell that story, including the fix.
 
 ## 11. What stops one agent from spending against a mandate issued to a different agent?
 
-Nothing does, today. This pass tested it directly: register two agents, A and B, each
-with their own real registered keypair; issue a mandate naming B as `agentId`; have A
-build and sign a transaction request — for real, with A's own genuine key — that
-satisfies every one of B's mandate constraints (merchant, category, amount, destination),
-but puts A's own `agentId` in the request. Result: `ALLOW / AUTHORISED`. None of the ten
-checks compares `mandate.agentId` to `request.agentId` — check 1 only proves the request
-was really signed by whoever's `agentId` is in the request; it never asks whether that
-agent is the one the mandate names. Combined with the already-documented fact that
-`GET /mandates/:id` on the issuer requires no authentication (any agent that can guess or
-observe a `mandateId` can fetch the full signed mandate), a second, unrelated agent —
-potentially belonging to a different user entirely — can spend against a mandate it was
-never granted, as long as its own request happens to satisfy that mandate's constraints.
-This was found live in this pass and deliberately **not fixed**: adding an eleventh check
-changes the check pipeline the project's own instructions call "verified" and told this
-pass not to restructure. It is reported here instead of silently patched. The
-one-line fix, for whoever picks this up next, is an eleventh check comparing
-`mandate.agentId === request.agentId` — mechanically identical in shape to checks 4 and 8.
-**Severity: high.** It does not currently produce a payment beyond what either agent's own
-mandate would already allow on its own terms, but it breaks the stated binding between a
-mandate and the agent it was issued to.
+**Check 11 — `MANDATE_AGENT_MISMATCH`.** It wasn't always there; here's the full history,
+kept rather than edited away, because how it was found is as informative as the fix.
+
+A live adversarial pass tested it directly: register two agents, A and B, each with their
+own real registered keypair; issue a mandate naming B as `agentId`; have A build and sign
+a transaction request — for real, with A's own genuine key — that satisfies every one of
+B's mandate constraints (merchant, category, amount, destination), but puts A's own
+`agentId` in the request. Result at the time: `ALLOW / AUTHORISED`. None of the original
+ten checks compared `mandate.agentId` to `request.agentId` — check 1 only proved the
+request was really signed by whoever's `agentId` is in the request; it never asked whether
+that agent was the one the mandate names. Combined with the already-documented fact that
+`GET /mandates/:id` on the issuer requires no authentication, a second, unrelated agent —
+potentially belonging to a different user entirely — could spend against a mandate it was
+never granted, as long as its own request happened to satisfy that mandate's constraints.
+
+That finding was reported, not silently patched, in the same pass that found it — adding
+a check changes a pipeline that pass was told to verify, not restructure. A follow-up pass
+added check 11 (`apps/passport/src/checks/11-mandate-agent.ts`): a one-line comparison,
+mechanically identical in shape to checks 4 and 8. It runs *last*, after check 10, rather
+than right after the signature checks where it semantically belongs — inserting it there
+would mean renumbering checks 3 through 10, invalidating specific check numbers already
+cited in `docs/INCIDENT.md`'s real audit-row narrative and the recording scripts in
+`docs/VIDEO.md`/`docs/DEMO.md`. See `docs/DECISIONS.md` #8 for the full tradeoff. Cost of
+running last: a mismatched request still reserves real cumulative spend at check 10 before
+check 11 blocks it — `authorize.ts` already releases that reservation on any BLOCK, so
+it's a wasted round trip, not a correctness gap.
+
+`tests/policy.spec.ts` case 14 constructs the exact scenario above — agent A, its own
+genuine signature, presenting agent B's mandate — and asserts both the block and that
+checks 1 through 10 all show `ok: true` in the response first, proving this isn't an
+earlier check short-circuiting on something else. **Status: closed.**
 
 ## 12. Does the agent process ever hold the Razorpay credentials?
 
-In today's dev setup, yes — not in code, but in its process environment. `apps/agent`'s
-`dev` script is `tsx watch --env-file=../../.env src/index.ts`, the same root `.env` file
-`apps/passport` loads, and that file contains `RAZORPAY_KEY_ID` /
-`RAZORPAY_KEY_SECRET`. Node's `--env-file` populates `process.env` for whichever process
-loads it — there is no per-service scoping. `apps/agent/src/` never reads either variable
-(confirmed by grep across the whole package: zero references), so under this project's
-stated threat model — an agent manipulated or fully directed by attacker-controlled text —
-this is not exploitable, because that threat model is about attacker-controlled *decisions*
-the agent makes through its normal code paths, not arbitrary code execution inside the
-agent's process. But it does contradict the literal hard rule "Only apps/passport holds
-Razorpay credentials" — the agent process holds the value, it just never uses it. Under a
-stronger attacker model (a supply-chain-compromised dependency inside `apps/agent`, or
-any other way to get arbitrary code running in that process), the credential is sitting
-right there in `process.env`, and nothing in the architecture would stop it from being
-read and used to call Razorpay directly, bypassing the Passport and its ten checks
-entirely. **Severity: medium** — not reachable under the documented threat model, real
-under a slightly stronger one, and cheap to close (split `.env` so `apps/agent` only ever
-loads the variables it actually uses — `ISSUER_URL`, `PASSPORT_URL`, `AGENT_PORT`,
-`AGENT_BRAIN`, `GROQ_API_KEY` — never the Razorpay pair). Not fixed in this pass for the
-same reason as Q11: it's an infrastructure/config change outside what this pass was asked
-to touch, reported instead of silently patched.
+**No — structurally, not just conventionally.** It used to, in a dev setup a live
+adversarial pass caught: `apps/agent`'s `dev` script loaded `tsx watch
+--env-file=../../.env src/index.ts`, the same root `.env` file `apps/passport` loads, and
+that file contained `RAZORPAY_KEY_ID`/`RAZORPAY_KEY_SECRET`. Node's `--env-file` populates
+`process.env` for whichever process loads it — there was no per-service scoping.
+`apps/agent/src/` never read either variable (confirmed by grep across the whole package:
+zero references at the time, still true now), so under this project's stated threat
+model — an agent manipulated or fully directed by attacker-controlled *decisions*, not
+arbitrary code execution — this was never exploitable. But it contradicted the literal
+hard rule "Only apps/passport holds Razorpay credentials": the agent process held the
+value, it just never used it. Under a stronger attacker model (a supply-chain-compromised
+dependency inside `apps/agent`, or any other way to get arbitrary code running in that
+process), the credential would have been sitting right there in `process.env`.
+
+Fixed in a follow-up pass: `apps/agent` now loads its own `apps/agent/.env`
+(`apps/agent/.env.example` is the template) instead of the shared root file — see
+`docs/RUNBOOK.md`'s "Two `.env` files, on purpose" section. That file structurally cannot
+contain the Razorpay pair; it holds only what `apps/agent/src/` actually reads
+(`ISSUER_URL`, `PASSPORT_URL`, `AGENT_PORT`, `AGENT_BRAIN`, `LLM_PROVIDER`, `LLM_MODEL`,
+`GROQ_API_KEY`). Verified directly, not just inferred from the config: running the exact
+command the dev script uses (`node --env-file=.env -e "..."` from `apps/agent/`) prints
+`RAZORPAY_KEY_ID present: false`, `RAZORPAY_KEY_SECRET present: false`,
+`GROQ_API_KEY present: true` — the agent process cannot hold what isn't in the one file it
+loads. `pnpm measure` is the one script that still needs both files (it imports the
+agent's brain code in-process to run the adversarial measurement), so its command loads
+`--env-file=.env --env-file=apps/agent/.env` together — the only place both are read by
+the same process, and that process is a one-off local script, not a long-running service
+an attacker could reach. **Status: closed.**
 
 ## 13. What happens if a check itself fails — not the business rule, the check?
 

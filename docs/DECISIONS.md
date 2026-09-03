@@ -26,7 +26,7 @@ re-explaining every time someone asks "why not just—".
 
 ### 3. No LLM inside the check pipeline
 
-- **Decision:** none of the ten checks call a model, fetch a URL, or read free text.
+- **Decision:** none of the checks call a model, fetch a URL, or read free text.
 - **Context:** this project exists because an agent can be manipulated by text it reads.
 - **Why we chose it:** a check that reads text could itself be manipulated by the same
   kind of injected instruction it's meant to catch.
@@ -80,3 +80,23 @@ re-explaining every time someone asks "why not just—".
 - **What we gave up:** nothing — the field it replaced (`Check.failCode`) was unused for
   anything else, so removing it in favour of one pipeline-level code is a strict
   simplification, not a tradeoff.
+
+### 8. Check 11 appended, not inserted where it semantically belongs
+
+- **Decision:** check 11 (`mandate.agentId === request.agentId`) runs last, after check 10,
+  even though it's an identity check that would more naturally sit right after checks 1
+  and 2.
+- **Context:** a live adversarial pass found that no check tied a mandate to the agent it
+  was issued to — a second, unrelated, validly-registered agent could spend against a
+  mandate it was never granted, as long as its own request happened to satisfy that
+  mandate's other constraints. See `docs/JUDGE-QA.md` Q11.
+- **Why we chose it:** inserting it after check 2 is the semantically correct position, but
+  it would mean renumbering checks 3 through 10 — touching 8 filenames and `id` fields, and
+  invalidating specific check numbers already cited in prose in `docs/INCIDENT.md` (a real
+  audit-row narrative) and the not-yet-recorded `docs/VIDEO.md`/`docs/DEMO.md` scripts,
+  which say "check 7 catches it" on camera. Appending is a pure addition: zero renumbering,
+  zero existing "check N" reference anywhere goes stale.
+- **What we gave up:** a mismatched request now reserves real cumulative spend at check 10
+  before check 11 catches it and blocks. `authorize.ts` already releases that reservation
+  on any BLOCK — this costs one wasted database round trip on a request that was always
+  going to fail, not a correctness or security gap.

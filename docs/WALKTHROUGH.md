@@ -24,7 +24,7 @@ assistant was never given the power to say yes on its own.
 4. `apps/issuer/src/mandates.ts` — how a mandate gets built, signed, and stored.
 5. `apps/passport/src/authorize.ts` — the route that runs the pipeline and calls
    Razorpay.
-6. `apps/passport/src/checks/pipeline.ts` — runs all ten checks in order, stops at the
+6. `apps/passport/src/checks/pipeline.ts` — runs all eleven checks in order, stops at the
    first failure.
 7. `apps/passport/src/ledger.ts` — the atomic spend-cap reservation check 10 depends on.
 8. `apps/agent/src/brain.ts` — the deliberately vulnerable product-picker a poisoned
@@ -70,15 +70,16 @@ sequenceDiagram
     Issuer-->>User: signed mandate
     User->>Agent: mandate + prompt
     Agent->>Passport: POST /authorize (signed request)
-    Passport->>Passport: run 10 checks
+    Passport->>Passport: run 11 checks
     Passport->>Razorpay: create order
     Razorpay-->>Passport: order id
     Passport->>Ledger: commit spend, write audit row
     Passport-->>Agent: ALLOW / AUTHORISED
 ```
 
-**The ten checks.** Every check either passes on or exits straight to the same `BLOCK`
-node — one exit, not ten different ones.
+**The eleven checks.** Every check either passes on or exits straight to the same `BLOCK`
+node — one exit, not eleven different ones. Check 11 runs last rather than right after the
+signature checks where it would semantically belong — see `docs/DECISIONS.md` #8.
 
 ```mermaid
 flowchart TD
@@ -91,8 +92,9 @@ flowchart TD
     C7 -->|pass| C8[8 destination]
     C8 -->|pass| C9[9 replay]
     C9 -->|pass| C10[10 cumulative spend]
-    C10 -->|pass| ALLOW[ALLOW / AUTHORISED]
-    C1 & C2 & C3 & C4 & C5 & C6 & C7 & C8 & C9 & C10 -->|fail| BLOCK[BLOCK + reason code]
+    C10 -->|pass| C11[11 mandate agent]
+    C11 -->|pass| ALLOW[ALLOW / AUTHORISED]
+    C1 & C2 & C3 & C4 & C5 & C6 & C7 & C8 & C9 & C10 & C11 -->|fail| BLOCK[BLOCK + reason code]
 ```
 
 **The attack path**, as it happened in `docs/INCIDENT.md`.
@@ -127,19 +129,19 @@ From CLAUDE.md's feature table:
 | Razorpay test-mode order behind the gate | 3 | done — order_TWPuek5W7Dh7kU |
 | Agent service, own keypair, SSE activity stream | 3 | done |
 | Clean + poisoned catalog, injection demo | 3 | done |
-| Web: create mandate / agent activity / Passport dashboard | 4 | done |
+| Web: create mandate / agent activity / security console | 4 | done |
 | Red attack dashboard state | 4 | done — checks after short-circuit show "not evaluated" |
-| Policy matrix tests (13 cases) | 5 | done, 13/13 |
+| Policy matrix tests (14 cases) | 5 | done, 14/14 |
 | Concurrency test (parallel spend race) | 5 | done, 10/10 rounds |
 | Compromise + false-block measurement | 5 | done — scripted brain: 60% compromised, 0% of those paid, 0% false blocks |
 | Real-LLM brain (AGENT_BRAIN=llm), wired to Groq | — | done and measured — 20% compromised in the most recent run, 0% of those paid, 0% false blocks. See `docs/EVALUATION.md` |
 | Docs pack | 6 | done — see the doc list above, now including `docs/JUDGE-QA.md` |
 | Agent registration hardening (immutable key per agentId) | — | done — `apps/passport/src/registry.ts` |
 | Fresh-clone verification, secrets scan, submission pack | 7 | done — see `docs/SUBMISSION.md`; deployment (optional) skipped, no cloud credentials |
-| Targeted hardening + live adversarial pass | — | done — `INFRA_ERROR` reason code, CONFIRM fully removed (not just undocumented), zod on every endpoint, generic 500s. Found and reported (not fixed) two real gaps — see `docs/JUDGE-QA.md` Q11 and Q12 |
+| Targeted hardening + live adversarial pass | — | done — `INFRA_ERROR` reason code, CONFIRM fully removed (not just undocumented), zod on every endpoint, generic 500s. Found and reported two real gaps, closed in the pass below — see `docs/JUDGE-QA.md` Q11 and Q12 |
+| Check 11 (mandate-agent binding) + apps/agent env split | — | done — `MANDATE_AGENT_MISMATCH`, appended last (see `docs/DECISIONS.md` #8); `apps/agent/.env` structurally cannot hold the Razorpay pair any more. Both gaps above closed — see `docs/JUDGE-QA.md` Q11/Q12 |
 | CONFIRM path (yellow) | — | **not built — removed from the Decision type and UI entirely, not just undocumented. Do not claim it in any doc** |
 | Signed receipts / non-repudiation | — | **not built — do not claim it in any doc** |
-| Mandate-to-agent binding (an 11th check) | — | **not built — a real gap, found live, reported in `docs/JUDGE-QA.md` Q11. Do not claim this is closed in any doc** |
 
 ## Questions judges will ask
 
@@ -151,7 +153,8 @@ longer matches — `MANDATE_SIGNATURE_INVALID`.
 **What if the agent is completely taken over by an attacker?** That's the assumption this
 project is built on — see `docs/THREAT-MODEL.md`. A fully controlled agent can request
 anything and sign it for real, but it still can't pass a check it violates, forge the
-issuer's signature, replay a nonce, or reach Razorpay.
+issuer's signature, replay a nonce, spend against a mandate issued to a different agent
+(check 11), or reach Razorpay.
 
 **What if your Passport service itself is compromised?** Then the guarantee breaks — see
 `docs/THREAT-MODEL.md`. The issuer and Passport are the trusted computing base; this
@@ -163,7 +166,7 @@ act within limits set once. A `CONFIRM` middle path isn't built anywhere — not
 
 **Why not use an LLM to check whether the product matches the request?** The checks must
 never read the same untrusted text the agent reads. A check judging "does this match"
-could be manipulated by the same injected text it's meant to catch — the ten checks
+could be manipulated by the same injected text it's meant to catch — the eleven checks
 compare only already-verified fields, never free text.
 
 **How is this different from a spending limit on a card?** A card limit caps total spend
@@ -182,12 +185,13 @@ catalog and got manipulated, with real audit rows in `docs/INCIDENT.md`. A real 
 attack phrasings: 20% compromised it in the most recent run. See `docs/EVALUATION.md`.
 
 **What does this not protect against?** A compromised issuer or Passport, bad limits the
-user set, fraud, KYC, chargebacks after money moves, whether the product picked was
-actually *good* — it can fit every limit and still be a poor buy — and two more specific
-things a later hardening pass found and reported rather than silently fixed: a mandate
-isn't bound to the agent it names, and the agent process's environment (not its code)
-contains the Razorpay credentials it never uses. Full detail: `docs/JUDGE-QA.md`, which
-also carries thirteen more questions in the same honest style.
+user set, fraud, KYC, chargebacks after money moves, and whether the product picked was
+actually *good* — it can fit every limit and still be a poor buy. A live adversarial pass
+also found two things this project didn't protect against yet, at the time: a mandate
+wasn't bound to the agent it names, and the agent process's environment (not its code)
+held the Razorpay credentials it never used. Both are fixed as of the pass that found
+them — full detail, including the before-and-after, in `docs/JUDGE-QA.md`, which also
+carries thirteen more questions in the same honest style.
 
 ## The 60-second pitch
 
@@ -195,8 +199,8 @@ AI agents can now shop and pay for you — that's the problem: an agent reads te
 internet, and text can lie to it. We built Agent Passport so a compromised agent still
 can't steal money. A user sets hard limits — a max amount, a total cap, approved stores,
 an expiry — and a separate issuer signs those limits into a mandate the agent carries but
-can never rewrite. Every time the agent tries to pay, our Passport runs ten deterministic
-checks against that signed mandate, no LLM in the gate, and blocks anything that breaks a
+can never rewrite. Every time the agent tries to pay, our Passport runs eleven
+deterministic checks against that signed mandate, no LLM in the gate, and blocks anything that breaks a
 limit before a rupee moves. We proved it: we planted a real prompt injection in a catalog,
 watched our agent ask for four times the stated budget, and watched the Passport block it
 in twenty-one milliseconds, audit row and all — while twenty ordinary purchases sailed
