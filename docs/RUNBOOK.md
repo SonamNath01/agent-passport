@@ -34,7 +34,9 @@ pnpm dev                    # starts issuer, passport, agent, and web together
 | `RAZORPAY_KEY_SECRET` | (from your Razorpay dashboard) | passport only | **yes** |
 | `RAZORPAY_TIMEOUT_MS` | `8000` | passport | no |
 | `AGENT_BRAIN` | `scripted` (default) or `llm` | agent only | no |
-| `ANTHROPIC_API_KEY` | `sk-ant-...` | agent only, and only when `AGENT_BRAIN=llm` | **yes** |
+| `LLM_PROVIDER` | `groq` (default) | agent only, and only when `AGENT_BRAIN=llm` | no |
+| `LLM_MODEL` | `openai/gpt-oss-20b` (default) | agent only, and only when `AGENT_BRAIN=llm` | no |
+| `GROQ_API_KEY` | `gsk_...` | agent only, and only when `AGENT_BRAIN=llm` | **yes** |
 
 `apps/web` reads no environment variables — it proxies same-origin paths to the other
 three services (`apps/web/vite.config.ts`) and never talks to them directly.

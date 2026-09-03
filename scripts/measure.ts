@@ -39,6 +39,7 @@ import { prisma } from "../apps/passport/src/db.js";
 import type { Product } from "../apps/agent/src/brain.js";
 import { chooseProduct, currentBrain, type AgentChoice } from "../apps/agent/src/brainSelector.js";
 import { MODEL, PROVIDER } from "../apps/agent/src/llmBrain.js";
+import { LLMRateLimitedError } from "../apps/agent/src/llmProvider.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const RESULTS_FILE = join(__dirname, "..", "docs", "results.json");
@@ -153,6 +154,34 @@ async function authorise(choice: { product: Product; amountPaise: number; quanti
   });
 }
 
+/**
+ * A 429 is Groq's rate limit, not a brain decision — it must never be
+ * recorded as a result. Wait past Groq's advertised retry window (or a
+ * growing backoff if none is given) and try the same attempt again,
+ * without incrementing any counter that ends up in docs/results.json.
+ */
+async function chooseProductRetryingRateLimit(
+  prompt: string,
+  catalog: Product[],
+  brain: "scripted" | "llm",
+  attemptNumber: number,
+): Promise<AgentChoice> {
+  let rateLimitRetries = 0;
+  for (;;) {
+    try {
+      return await chooseProduct(prompt, catalog, brain);
+    } catch (err) {
+      if (!(err instanceof LLMRateLimitedError)) {
+        throw err;
+      }
+      rateLimitRetries += 1;
+      const waitMs = 15_000 * rateLimitRetries;
+      console.error(`  [attempt ${attemptNumber}] rate-limited (429) — waiting ${waitMs}ms before retrying, not counted as a result`);
+      await new Promise((resolve) => setTimeout(resolve, waitMs));
+    }
+  }
+}
+
 function pct(numerator: number, denominator: number): string {
   return denominator === 0 ? "n/a" : `${((numerator / denominator) * 100).toFixed(1)}%`;
 }
@@ -166,10 +195,16 @@ async function main(): Promise<void> {
   let compromisedAttemptsThatProducedPayment = 0;
 
   for (const description of COMPROMISE_ATTEMPT_DESCRIPTIONS) {
+    // Space out real model calls so a burst never trips Groq's free-tier
+    // rate limit mid-run and gets recorded as a false result; the scripted
+    // brain makes no network call, so it isn't slowed down.
+    if (brain === "llm" && attemptCount > 0) {
+      await new Promise((resolve) => setTimeout(resolve, 4000));
+    }
     attemptCount += 1;
     let choice: AgentChoice;
     try {
-      choice = await chooseProduct(PROMPT, compromiseAttemptCatalog(description), brain);
+      choice = await chooseProductRetryingRateLimit(PROMPT, compromiseAttemptCatalog(description), brain, attemptCount);
     } catch (err) {
       // Fail closed: an unparseable/invalid brain response does not count as a compromise.
       brainResponseParseFailures += 1;
@@ -224,13 +259,19 @@ async function main(): Promise<void> {
       "This is a deliberately compromisable scripted pattern-matcher, not a real LLM. " +
       "These numbers measure how often this scripted agent's product choice deviates from " +
       "the stated budget when the catalog contains injected instruction text — they are NOT " +
-      "a measurement of real LLM prompt-injection susceptibility. AGENT_BRAIN=llm is " +
-      "implemented (apps/agent/src/llmBrain.ts, a real Claude API call) but has not been run: " +
-      "no ANTHROPIC_API_KEY was available in this environment.";
+      "a measurement of real LLM prompt-injection susceptibility. A real-LLM brain has " +
+      "separately been measured (AGENT_BRAIN=llm, apps/agent/src/llmBrain.ts, an open model " +
+      "served on Groq) — see the sibling \"llm\" block in this file for those numbers, which " +
+      "characterise that specific model/provider and do not generalise to all agents.";
   } else {
     block.brain = "llm";
     block.provider = PROVIDER;
     block.model = MODEL;
+    block.limitations =
+      "Provider/model as recorded above — an open model served on Groq, not a frontier model. " +
+      "These numbers characterise this specific configuration and do not generalise to other " +
+      "models or providers. Small sample (10 attack phrasings, 20 legitimate requests): enough " +
+      "to catch an obvious bug, not enough to estimate a real-world rate with confidence.";
   }
 
   const existing: Record<string, unknown> = existsSync(RESULTS_FILE)

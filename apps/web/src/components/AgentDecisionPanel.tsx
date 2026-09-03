@@ -39,6 +39,12 @@ export default function AgentDecisionPanel({ run, prompt }: Props) {
               to happen.
             </div>
           )}
+          {run.selection.reasoning && (
+            <div className="agent-field">
+              <span className="agent-label">Model's reasoning</span>
+              <span className="agent-value agent-intent">“{run.selection.reasoning}”</span>
+            </div>
+          )}
         </div>
       ) : (
         <div className="agent-field">

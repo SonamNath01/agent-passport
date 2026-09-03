@@ -20,6 +20,7 @@ export interface RunResponse {
     quantity: number;
     budgetRupees: number;
     overBudget: boolean;
+    reasoning?: string;
   };
   mandate: Mandate;
   request: TransactionRequest;

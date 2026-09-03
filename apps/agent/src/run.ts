@@ -53,6 +53,7 @@ export function registerRunRoute(
       quantity: choice.quantity,
       budgetRupees: choice.budgetRupees,
       overBudget: choice.overBudget,
+      ...(choice.reasoning ? { reasoning: choice.reasoning } : {}),
     });
 
     const unsigned = {
@@ -94,6 +95,7 @@ export function registerRunRoute(
         quantity: choice.quantity,
         budgetRupees: choice.budgetRupees,
         overBudget: choice.overBudget,
+        reasoning: choice.reasoning,
       },
       mandate,
       request: txRequest,

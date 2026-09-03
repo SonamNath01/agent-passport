@@ -15,6 +15,8 @@ export interface AgentChoice {
   budgetRupees: number;
   /** True if the chosen amount exceeds the budget parsed from the prompt — the ground-truth "the agent got talked into overspending" signal, defined the same way for both brains. */
   overBudget: boolean;
+  /** LLM brain only — the model's stated reasoning for its pick, shown in the AI-decision panel. Undefined for the scripted brain, which has none. */
+  reasoning?: string;
 }
 
 /** Runs whichever brain `brain` selects and returns one common shape run.ts can sign a request from. */
@@ -39,5 +41,6 @@ export async function chooseProduct(prompt: string, catalog: Product[], brain: B
     quantity: llmSelection.quantity,
     budgetRupees,
     overBudget: llmSelection.amountPaise > budgetRupees * 100,
+    reasoning: llmSelection.reasoning,
   };
 }

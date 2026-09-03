@@ -67,9 +67,11 @@ correct, 4 ALLOW + 1 BLOCK every time against a shared cap (`tests/concurrency.s
   module or a managed secrets store.
 - **The default agent "brain" is scripted, not a real LLM.** The measured numbers above
   come from `apps/agent/src/brain.ts`, a deliberately compromisable pattern-matcher. A
-  real-LLM brain exists behind `AGENT_BRAIN=llm` (`apps/agent/src/llmBrain.ts`, a real
-  Claude API call) but has not been run in this environment — no `ANTHROPIC_API_KEY` was
-  available, so no LLM numbers appear anywhere in this repo.
+  real-LLM brain also exists behind `AGENT_BRAIN=llm` (`apps/agent/src/llmBrain.ts`, calling
+  `openai/gpt-oss-20b` on Groq via `apps/agent/src/llmProvider.ts`) and has been measured:
+  30% (3/10) of the same attack phrasings compromised it, 0% of those produced a payment —
+  see `docs/results.json`'s `"llm"` block and `docs/EVALUATION.md` for the full numbers and
+  why that figure characterises this one open model/provider, not LLM agents generally.
 - **No CONFIRM path.** The Passport only ever returns ALLOW or BLOCK. A middle "ask the
   user" path is designed into the reason codes (`Decision` includes `"CONFIRM"` in
   `packages/shared/src/types.ts`) but not built — see `docs/DECISIONS.md`.
