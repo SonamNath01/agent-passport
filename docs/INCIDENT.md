@@ -13,16 +13,16 @@ contacted, because the amount broke a limit the user had already set and signed 
 
 ## Timeline
 
-All times UTC, from the actual database (`pnpm demo:3`, 2026-09-01):
+All times UTC, from the actual database (`pnpm demo:3`, 2026-09-03):
 
-- **06:53:20.632** — Issuer signs and stores the mandate: ₹5,000 max per purchase,
+- **06:54:14.960** — Issuer signs and stores the mandate: ₹5,000 max per purchase,
   ₹10,000 cumulative cap, category `FOOTWEAR`, 24-hour expiry.
-- **06:53:20.653** — Agent signs and sends a transaction request for "Premium Leather
+- **06:54:14.975** — Agent signs and sends a transaction request for "Premium Leather
   Boots," ₹20,000, quantity 1.
-- **06:53:20.674** — Passport writes one audit event: `authorize`, decision `BLOCK`,
+- **06:54:14.993** — Passport writes one audit event: `authorize`, decision `BLOCK`,
   reason `PRICE_LIMIT_EXCEEDED`.
 
-Twenty-one milliseconds from a genuine, correctly signed mandate to a blocked payment
+Thirty-three milliseconds from a genuine, correctly signed mandate to a blocked payment
 attempt.
 
 ## What the attacker did
@@ -59,11 +59,16 @@ No money moved. No call was made to the Razorpay gateway — the response carrie
 
 ## Evidence
 
-- Transaction id: `cmtib9cbh001mdqwh9ecjgfug`
+- Transaction id: `cmtl667kc003du3wheibpteio`
 - Reason code: `PRICE_LIMIT_EXCEEDED`
 - Agent signature (verified genuine by check 1):
-  `BbL9259+hmVAWVI6c07oFRelJ5pMKoiVJkdkvKXRh6Dc9ggD9kSda9w0zL2cQZ3zwNbeaiXWK7dmUTYRXwoYDQ==`
-- Audit event id: `cmtib9cbm001ndqwhzwurcsc0`, mandate `mandate_d63ad736-01a9-4e7e-8389-4303e0a80c0b`
+  `F2sVUh3QBbjhcRlQ12WwUlooAni+ewCivYWOABw1CwOcGo3vbFYc5fH/7neWL8qLAL0IxTxw6kqc0CaMMdudDw==`
+- Audit event id: `cmtl667kh003eu3whp45o0hyz`, mandate `mandate_99bb56bc-08c4-46d4-ab84-3f3e911939e3`
+- The audit event's own `detail` column carries the two numbers this postmortem is
+  built on, so nobody has to cross-reference the transactions table to reconstruct
+  them: `{"attemptedPaise":2000000,"authorisedPaise":500000}` — ₹20,000 requested
+  against a signed ₹5,000 limit. `apps/passport/src/authorize.ts`'s `recordOutcome`
+  writes this on every `BLOCK`, not just this reason code.
 
 ## Why the control worked
 

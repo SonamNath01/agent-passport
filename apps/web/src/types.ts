@@ -38,8 +38,10 @@ export interface MandateStatus {
 }
 
 // One row from the passport's GET /audit — see apps/passport/src/audit.ts.
-// `detail` is whatever recordAuditEvent() was called with; only `payment` is
-// read anywhere in the web app, and only when present.
+// `detail` is whatever recordAuditEvent() was called with: `payment` on
+// ALLOW, `attemptedPaise`/`authorisedPaise` on BLOCK (see
+// apps/passport/src/authorize.ts's recordOutcome) — only `payment` is read
+// anywhere in the web app today, and only when present.
 export interface AuditEvent {
   id: string;
   type: string;
@@ -47,6 +49,6 @@ export interface AuditEvent {
   agentId?: string | null;
   decision?: string | null;
   reasonCode?: string | null;
-  detail?: { payment?: { status: string; orderId?: string } } | null;
+  detail?: { payment?: { status: string; orderId?: string }; attemptedPaise?: number; authorisedPaise?: number } | null;
   createdAt: string;
 }

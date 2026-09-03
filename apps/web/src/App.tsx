@@ -5,8 +5,9 @@ import type { RunResponse, RunStep } from "./types";
 import CreateMandateScreen from "./screens/CreateMandate";
 import AgentActivityScreen from "./screens/AgentActivity";
 import SecurityConsoleScreen from "./screens/SecurityConsole";
+import DemoScenariosScreen from "./screens/DemoScenarios";
 
-type Tab = "mandate" | "agent" | "console";
+type Tab = "mandate" | "agent" | "console" | "demo";
 type Identity = { agentId: string; publicKey: string };
 
 // Screens never talk to each other directly — App is the only place that
@@ -47,6 +48,24 @@ export default function App() {
     setTab("agent");
   }
 
+  // A demo scenario creates its own mandate and drives apps/agent / apps/passport
+  // directly (apps/web/src/demoScenarios.ts) rather than going through the
+  // create-mandate / agent-activity screens, but its result renders through the
+  // exact same console — so it's plugged into the same state App already holds.
+  function handleScenarioResult(scenarioMandate: Mandate, run: RunResponse, scenarioPrompt: string): void {
+    setMandate(scenarioMandate);
+    setPrompt(scenarioPrompt);
+    setSteps([]);
+    setLatestRun(run);
+    setTab("console");
+  }
+
+  function handleDemoReset(): void {
+    setMandate(null);
+    setSteps([]);
+    setLatestRun(null);
+  }
+
   return (
     <div className="app">
       <header className="app-header">
@@ -73,6 +92,9 @@ export default function App() {
         </button>
         <button className={`tab ${tab === "console" ? "active" : ""}`} disabled={!mandate} onClick={() => setTab("console")}>
           3. Security console
+        </button>
+        <button className={`tab ${tab === "demo" ? "active" : ""}`} onClick={() => setTab("demo")}>
+          Demo scenarios
         </button>
       </nav>
 
@@ -102,6 +124,9 @@ export default function App() {
       )}
       {tab === "console" && mandate && (
         <SecurityConsoleScreen mandate={mandate} latestRun={latestRun} prompt={prompt} issuerPublicKey={issuerPublicKey} />
+      )}
+      {tab === "demo" && (
+        <DemoScenariosScreen identity={identity} onScenarioResult={handleScenarioResult} onReset={handleDemoReset} />
       )}
     </div>
   );

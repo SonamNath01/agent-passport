@@ -3,6 +3,7 @@ import { registerAgentRoutes } from "./registry.js";
 import { registerAuthorizeRoute } from "./authorize.js";
 import { registerAuditRoutes } from "./audit.js";
 import { registerMandateStatusRoute } from "./mandateStatus.js";
+import { registerDemoResetRoute } from "./demoReset.js";
 
 const app = Fastify({ logger: true });
 
@@ -56,6 +57,7 @@ async function main(): Promise<void> {
   registerAuthorizeRoute(app, publicKey);
   registerAuditRoutes(app);
   registerMandateStatusRoute(app);
+  registerDemoResetRoute(app);
 
   await app.listen({ port, host: "0.0.0.0" });
   app.log.info(`passport listening on :${port} (issuer public key cached from ${issuerUrl})`);

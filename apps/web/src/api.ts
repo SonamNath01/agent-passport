@@ -1,4 +1,4 @@
-import type { Mandate } from "@agent-passport/shared";
+import type { AuthorizeResult, Mandate, TransactionRequest } from "@agent-passport/shared";
 import type { AuditEvent, MandateStatus, RunResponse } from "./types";
 
 async function json<T>(pending: Promise<Response>): Promise<T> {
@@ -63,4 +63,28 @@ export function getIssuerPublicKey(): Promise<{ publicKey: string }> {
 // event, blocked included. Polled by the audit feed.
 export function getAuditEvents(limit = 25): Promise<{ events: AuditEvent[] }> {
   return json(fetch(`/api/passport/audit?limit=${limit}`));
+}
+
+// Calls apps/passport's /authorize directly with a caller-built (mandate,
+// request) pair, bypassing apps/agent entirely. Used only by the demo
+// panel's tampered-signature and replay scenarios, which need to resend an
+// already-signed request unchanged (replay) or paired with a since-altered
+// mandate (tampered signature) — apps/agent's /run always builds and signs
+// a brand new request, so it can't produce either of those on its own.
+export function authorizeDirect(mandate: Mandate, request: TransactionRequest): Promise<AuthorizeResult> {
+  return json(
+    fetch("/api/passport/authorize", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ mandate, request }),
+    }),
+  );
+}
+
+// apps/passport/src/demoReset.ts — clears every mandate-scoped table so the
+// demo panel's five scenarios can be re-run cleanly, without restarting any
+// service (unlike `pnpm demo:reset`, this deliberately leaves Agent/User
+// rows alone).
+export function resetDemoState(): Promise<{ reset: boolean }> {
+  return json(fetch("/api/passport/demo/reset", { method: "POST" }));
 }

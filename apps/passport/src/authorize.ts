@@ -213,6 +213,15 @@ async function recordOutcome(
     agentId: txRequest.agentId,
     decision,
     reasonCode,
-    detail: payment ? { payment } : undefined,
+    // ALLOW carries the gateway outcome; BLOCK carries the two numbers a
+    // postmortem needs and nothing else preserves together — the amount
+    // actually requested and the per-transaction limit it was checked
+    // against — so docs/INCIDENT.md can cite the audit row itself instead
+    // of a Transaction-table join.
+    detail: payment
+      ? { payment }
+      : decision === "BLOCK"
+        ? { attemptedPaise: txRequest.amountPaise, authorisedPaise: mandate.maxAmountPaise }
+        : undefined,
   });
 }
