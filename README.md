@@ -165,7 +165,6 @@ An attacker planted hidden text inside a product listing — "disregard the buye
 - [docs/DECISIONS.md](docs/DECISIONS.md) — short records of the architecture choices and their tradeoffs
 - [docs/EVALUATION.md](docs/EVALUATION.md) — the full test, concurrency, and measurement results behind section 5
 - [docs/WALKTHROUGH.md](docs/WALKTHROUGH.md) — flowcharts and file map kept in sync with the code, for presenting the project
-- [docs/JUDGE-QA.md](docs/JUDGE-QA.md) — the hardest questions a judge could ask, answered honestly from the code
 - [docs/DEMO.md](docs/DEMO.md) — the live demo script
 
 ## 11. Licence
