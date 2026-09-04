@@ -16,7 +16,7 @@ describe("spend cap under concurrency", () => {
   // revoked lookup, nonce insert, spend reservation, mandate/transaction/audit
   // writes); over Docker Desktop's WSL2 network layer that comfortably exceeds
   // vitest's default 5s timeout even though nothing is actually stuck.
-  it("allows exactly four ₹499 authorize requests against a ₹2,000 cap and blocks the fifth", { timeout: 20_000 }, async () => {
+  it("allows exactly four ₹499 authorize requests against a ₹2,000 cap and blocks the fifth", { timeout: 120_000 }, async () => {
     const issuerKeyPair = generateKeyPair();
     const agentKeyPair = generateKeyPair();
 

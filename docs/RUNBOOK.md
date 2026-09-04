@@ -145,3 +145,11 @@ picking release-candidate versions of the TypeScript compiler and the Prisma cli
 which then behaved differently from what the code was written against. If you need to
 bump a version, do it deliberately and re-run `pnpm typecheck` and `pnpm test` — don't let
 `pnpm install` pick one for you.
+
+**`apps/passport/test/spend-concurrency.test.ts` is slow, sometimes very slow.** Measured
+15-95s for the same test depending on `/mnt/c` file cache warmth: a cold run — fresh
+checkout, or the suite hasn't run in a while — pays for uncached module reads over the
+9p/drvfs mount on top of the real DB round trips five parallel `/authorize` calls make; a
+warm run (suite already run once recently) is fast. This isn't an intermittent failure,
+it's the same cost every run under this filesystem, just paid at different times. The
+test's timeout is set to 120s to absorb the cold case rather than flake on camera or in CI.
