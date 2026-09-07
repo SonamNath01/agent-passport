@@ -1,6 +1,10 @@
 # Agent Passport
 
-An authorisation layer that lets an AI shopping agent spend money for a user without ever holding the user's PIN or unlimited spending power.
+> Authentication proves who's asking. Authorisation decides what they're
+> allowed to do — even when the asker has been manipulated.
+
+An authorisation layer that lets an AI shopping agent spend money for a
+user without ever holding the user's PIN or unlimited spending power.
 
 ## 1. The problem
 
